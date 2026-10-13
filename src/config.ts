@@ -63,7 +63,7 @@ export const CONFIG = {
   // Flow
   bubbleHoldMs: 900,
   bubbleFadeMs: 300,
-  pointFreezeMs: 1200,
+  pointFreezeMs: 1600,
 
   // Art
   farNearRatio: 0.48,

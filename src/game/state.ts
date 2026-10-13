@@ -183,7 +183,8 @@ export class Game {
         break;
       case "POINT": {
         stepBall(b, dt, false);
-        if (b.pos.y < -0.12) b.visible = false; // dropped out of sight below the table
+        b.trail.unshift({ ...b.pos });
+        if (b.trail.length > 24) b.trail.pop();
         if (this.now - this.phaseAt > CONFIG.pointFreezeMs) {
           const w = winner(this.score);
           if (w) {
@@ -230,7 +231,7 @@ export class Game {
 
     // Trail bookkeeping.
     b.trail.unshift({ ...b.pos });
-    if (b.trail.length > 8) b.trail.pop();
+    if (b.trail.length > 24) b.trail.pop();
 
     const hitter = b.lastHitter!;
     const receiver = other(hitter);

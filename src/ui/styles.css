@@ -295,3 +295,44 @@ canvas#game {
     animation: none;
   }
 }
+
+
+/* Locked difficulty label (not clickable) */
+.chip-static {
+  cursor: default;
+  opacity: 1;
+  box-shadow: 0 2px 0 var(--ink);
+  user-select: none;
+}
+
+/* Info badge */
+.info-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 0 0;
+  padding: 8px 14px;
+  background: #eef6ff;
+  color: #2b5f99;
+  border: 2px solid #2b5f99;
+  border-radius: 999px;
+  font: 400 var(--t-caption)/1.2 var(--font);
+  text-align: left;
+}
+.info-badge svg {
+  flex: none;
+}
+
+/* Equal-width action buttons */
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.actions .btn {
+  width: 100%;
+  white-space: nowrap;
+  padding-left: 12px;
+  padding-right: 12px;
+  text-align: center;
+}

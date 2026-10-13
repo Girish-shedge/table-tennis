@@ -77,12 +77,8 @@ export function stepBall(ball: Ball, dt: number, rulesLive: boolean): BallEvent 
 
   ball.squash = Math.max(0, ball.squash - dt * 6);
 
-  if (!rulesLive) {
-    return p.y < floorY ? { type: "floor" } : { type: "none" };
-  }
-
   // Net: crossing the net plane below the cord height.
-  const crossedNet = (ball.prev.z - netZ) * (p.z - netZ) < 0;
+  const crossedNet = rulesLive && (ball.prev.z - netZ) * (p.z - netZ) < 0;
   if (crossedNet && p.y < netHeight + ballR && Math.abs(p.x) < tableW / 2 + CONFIG.netOverhang) {
     const side = Math.sign(ball.prev.z - netZ) || 1;
     p.z = netZ + side * (ballR + 0.005);
@@ -106,6 +102,24 @@ export function stepBall(ball: Ball, dt: number, rulesLive: boolean): BallEvent 
     }
     // Only report the fall once (when first dipping below the surface).
     if (ball.prev.y > 0) return { type: "falloff" };
+  }
+
+  if (!rulesLive) {
+    // After the point: the ball drops to the ground, bounces and trickles to rest.
+    if (p.y <= floorY && v.y < 0) {
+      p.y = floorY;
+      v.y = -v.y * 0.5;
+      if (v.y < 0.35) v.y = 0;
+      v.x *= 0.8;
+      v.z *= 0.8;
+      ball.squash = Math.min(1, Math.abs(v.y) / 2);
+    }
+    if (p.y <= floorY + 1e-4 && v.y === 0) {
+      const f = Math.exp(-2.2 * dt);
+      v.x *= f;
+      v.z *= f;
+    }
+    return { type: "none" };
   }
 
   if (p.y < floorY) return { type: "floor" };

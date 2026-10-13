@@ -70,31 +70,27 @@ export function drawNet(ctx: CanvasRenderingContext2D, P: Projection, s: number,
   if (shimmer > 0) ctx.fillStyle = `rgba(190, 225, 255, ${0.6 + 0.3 * shimmer})`;
   ctx.fillRect(left, top.y, right - left, h);
 
-  // Faint mesh lines.
-  ctx.strokeStyle = "rgba(255,255,255,0.35)";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  const step = Math.max(6, 9 * s);
-  for (let x = left + step; x < right; x += step) {
-    ctx.moveTo(x, top.y);
-    ctx.lineTo(x, base.y);
-  }
-  ctx.stroke();
-
-  // Top cord and posts.
+  // Top cord and bottom line frame the band.
   ctx.strokeStyle = COLORS.ink;
   ctx.lineCap = "round";
-  ctx.lineWidth = Math.max(1.5, 2.2 * s);
+  ctx.lineWidth = Math.max(2, 3 * s);
   ctx.beginPath();
   ctx.moveTo(left, top.y);
   ctx.lineTo(right, top.y);
   ctx.stroke();
 
-  ctx.lineWidth = Math.max(2.5, 3.5 * s);
+  ctx.lineWidth = Math.max(1.5, 2.2 * s);
   ctx.beginPath();
-  ctx.moveTo(left, top.y - 2 * s);
-  ctx.lineTo(left, base.y + 3 * s);
-  ctx.moveTo(right, top.y - 2 * s);
-  ctx.lineTo(right, base.y + 3 * s);
+  ctx.moveTo(left, base.y);
+  ctx.lineTo(right, base.y);
+  ctx.stroke();
+
+  // Slim posts, poking out slightly past the cord and the bottom line.
+  ctx.lineWidth = Math.max(2, 3.2 * s);
+  ctx.beginPath();
+  ctx.moveTo(left, top.y - 1.5 * s);
+  ctx.lineTo(left, base.y + 9 * s);
+  ctx.moveTo(right, top.y - 1.5 * s);
+  ctx.lineTo(right, base.y + 9 * s);
   ctx.stroke();
 }

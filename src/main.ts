@@ -5,7 +5,7 @@ import { Audio } from "./audio";
 import { COLORS, CONFIG, type Difficulty } from "./config";
 import { Input } from "./game/input";
 import { Game, type GameEvent, type PointReason } from "./game/state";
-import { drawBall, drawBallShadow } from "./render/ball";
+import { drawBall, drawBallShadow, hiddenByTable } from "./render/ball";
 import { Bubble, drawGrabTooltip } from "./render/bubble";
 import { Character } from "./render/character";
 import { Hud } from "./render/hud";
@@ -22,7 +22,6 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const overlayStart = $<HTMLDivElement>("overlay-start");
 const overlayOver = $<HTMLDivElement>("overlay-over");
 const controls = $<HTMLDivElement>("controls");
-const btnMode = $<HTMLButtonElement>("btn-mode");
 const btnMute = $<HTMLButtonElement>("btn-mute");
 const modeLabel = $<HTMLSpanElement>("mode-label");
 const overTitle = $<HTMLHeadingElement>("over-title");
@@ -66,9 +65,7 @@ const input = new Input(canvas, {
     game.primary();
   },
   onMute: () => setMuted(!audio.muted),
-  onEscape: () => {
-    if (game.phase !== "MENU") showMenu();
-  },
+  onEscape: () => {},
 });
 
 // Make sure the canvas fonts are ready (canvas redraws every frame, so it picks them up).
@@ -183,7 +180,6 @@ function startMatch(d: Difficulty) {
   overlayStart.hidden = true;
   overlayOver.hidden = true;
   controls.hidden = false;
-  localStorage.setItem("tt-difficulty", d);
   (document.activeElement as HTMLElement | null)?.blur?.();
 }
 
@@ -191,12 +187,11 @@ for (const btn of Array.from(document.querySelectorAll<HTMLButtonElement>(".mode
   btn.addEventListener("click", () => startMatch(btn.dataset.mode as Difficulty));
 }
 $("btn-again").addEventListener("click", () => startMatch(game.difficulty));
-$("btn-change").addEventListener("click", showMenu);
+$("btn-change").addEventListener("click", showMenu); // only reachable once a match has ended
 overlayOver.addEventListener("click", (e) => {
   // Tap anywhere outside the buttons to play again.
   if (!(e.target instanceof HTMLElement && e.target.closest("button"))) startMatch(game.difficulty);
 });
-btnMode.addEventListener("click", showMenu);
 btnMute.addEventListener("click", () => {
   audio.unlock();
   setMuted(!audio.muted);
@@ -212,9 +207,6 @@ setMuted(audio.muted);
 $("start-hint").textContent =
   input.kind === "touch" ? "Drag to move · Tap to serve" : "Arrow keys or drag to move · Space to serve";
 $("over-hint").textContent = input.kind === "touch" ? "Tap to play again" : "Space or tap to play again";
-
-const savedMode = localStorage.getItem("tt-difficulty") as Difficulty | null;
-if (savedMode && CONFIG.difficulty[savedMode]) modeLabel.textContent = CONFIG.difficulty[savedMode].label;
 
 drawCardArt();
 
@@ -266,14 +258,21 @@ function render() {
     drawPaddle(ctx, P, game.aiPaddle, AI_STYLE);
   }
 
+  // A ball that has dropped below the table behind its far end is hidden by the table.
+  const behindTable = game.phase !== "MENU" && game.ball.pos.y < 0 && game.ball.pos.z > CONFIG.tableL;
+  if (behindTable) {
+    drawBallShadow(ctx, P, game.ball);
+    drawBall(ctx, P, game.ball, reducedMotion);
+  }
+
   // 4. Table.
   drawTable(ctx, P, s);
 
-  if (game.phase !== "MENU") {
+  if (game.phase !== "MENU" && !behindTable) {
     const ball = game.ball;
     // 5. Ball shadow and far-side ball.
     drawBallShadow(ctx, P, ball);
-    if (ball.pos.z > CONFIG.netZ) drawBall(ctx, P, ball, reducedMotion);
+    if (ball.pos.z > CONFIG.netZ && !hiddenByTable(ball)) drawBall(ctx, P, ball, reducedMotion);
   }
 
   // 6. Net.
@@ -281,20 +280,15 @@ function render() {
 
   if (game.phase !== "MENU") {
     const ball = game.ball;
-    // 7. Near-side ball (behind the paddle unless it is closer to the camera).
-    const nearBall = ball.pos.z <= CONFIG.netZ;
-    const ballInFront = ball.pos.z < game.player.pos.z;
-    if (nearBall && !ballInFront) drawBall(ctx, P, ball, reducedMotion);
-
-    // 8. Player paddle.
+    // 7. Player paddle (slightly see-through), then the near-side ball always in front of it.
     drawPaddleShadow(ctx, P, game.player, PLAYER_STYLE);
-    drawPaddle(ctx, P, game.player, PLAYER_STYLE);
-    if (nearBall && ballInFront) drawBall(ctx, P, ball, reducedMotion);
+    drawPaddle(ctx, P, game.player, PLAYER_STYLE, 0.8);
+    if (!behindTable && ball.pos.z <= CONFIG.netZ && !hiddenByTable(ball)) drawBall(ctx, P, ball, reducedMotion);
 
     // 9. Grab tooltip (mouse only).
     if (input.kind === "mouse" && (input.hovering || input.grabbing)) {
       const ps = paddleScreen(P, game.player, PLAYER_STYLE);
-      drawGrabTooltip(ctx, ps.x + ps.r * 0.55, ps.y + ps.r * 0.75, s);
+      drawGrabTooltip(ctx, ps.x + ps.r * 0.55, ps.y + ps.r * 0.75, s, "You");
     }
   }
   ctx.restore();
@@ -346,8 +340,8 @@ function drawCardArt() {
   const c = document.getElementById("card-art") as HTMLCanvasElement | null;
   if (!c) return;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const w = 140;
-  const h = 110;
+  const w = 170;
+  const h = 120;
   c.width = w * dpr;
   c.height = h * dpr;
   c.style.width = `${w}px`;
@@ -356,20 +350,14 @@ function drawCardArt() {
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   // A flat stand-in projection so the paddle renderer can be reused.
-  const S = 150;
+  const S = 175;
   const flat = Object.create(Projection.prototype) as Projection;
   flat.scaleAt = () => S;
-  flat.project = (x: number, y: number, _z: number) => ({ x: 62 + x * S, y: 40 - y * S, scale: S });
+  flat.project = (x: number, y: number, _z: number) => ({ x: w / 2 + x * S, y: 38 - y * S, scale: S });
 
-  const paddle = { pos: { x: 0, y: 0, z: 0 }, target: { x: 0, z: 0 }, vel: { x: 0, z: 0 }, tilt: -0.4, squash: 0 };
-  drawPaddle(g, flat, paddle, PLAYER_STYLE);
-
-  // Ball.
-  g.fillStyle = COLORS.white;
-  g.strokeStyle = COLORS.ink;
-  g.lineWidth = 2.5;
-  g.beginPath();
-  g.arc(108, 22, 7, 0, Math.PI * 2);
-  g.fill();
-  g.stroke();
+  // Two bats crossed in an X: red and blue.
+  const blue = { ...AI_STYLE, artScale: 1 };
+  const bat = (x: number, tilt: number) => ({ pos: { x, y: 0, z: 0 }, target: { x: 0, z: 0 }, vel: { x: 0, z: 0 }, tilt, squash: 0 });
+  drawPaddle(g, flat, bat(0.2, 1.0), blue);
+  drawPaddle(g, flat, bat(-0.2, -1.0), PLAYER_STYLE);
 }

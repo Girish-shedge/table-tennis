@@ -39,13 +39,42 @@ export function drawPaddleShadow(ctx: CanvasRenderingContext2D, P: Projection, p
   ctx.restore();
 }
 
-export function drawPaddle(ctx: CanvasRenderingContext2D, P: Projection, p: Paddle, style: PaddleStyle) {
+let offscreen: HTMLCanvasElement | null = null;
+
+/** Draw a paddle. `alpha < 1` renders it as one see-through shape (no stroke overlaps showing). */
+export function drawPaddle(ctx: CanvasRenderingContext2D, P: Projection, p: Paddle, style: PaddleStyle, alpha = 1) {
   const c = P.project(p.pos.x, p.pos.y, p.pos.z);
   const R = CONFIG.paddleArtR * c.scale * style.artScale;
+
+  if (alpha >= 1) {
+    ctx.save();
+    ctx.translate(c.x, c.y);
+    paddleBody(ctx, p, style, R);
+    ctx.restore();
+    return;
+  }
+
+  const k = ctx.getTransform().a || 1;
+  const w = Math.ceil(R * 6);
+  const h = Math.ceil(R * 6);
+  const ox = w / 2;
+  const oy = h * 0.35;
+  offscreen ??= document.createElement("canvas");
+  offscreen.width = Math.ceil(w * k);
+  offscreen.height = Math.ceil(h * k);
+  const o = offscreen.getContext("2d")!;
+  o.setTransform(k, 0, 0, k, ox * k, oy * k);
+  paddleBody(o, p, style, R);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(offscreen, c.x - ox, c.y - oy, w, h);
+  ctx.restore();
+}
+
+function paddleBody(ctx: CanvasRenderingContext2D, p: Paddle, style: PaddleStyle, R: number) {
   const lw = Math.max(2.2, R * 0.085);
 
   ctx.save();
-  ctx.translate(c.x, c.y);
   ctx.rotate(p.tilt);
   const sq = p.squash;
   ctx.scale(1 + 0.1 * sq, 1 - 0.08 * sq);
