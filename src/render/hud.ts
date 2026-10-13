@@ -21,7 +21,7 @@ export class Hud {
     const s = L.box.s;
     const cx = L.box.x + L.box.w / 2;
     const y = L.scoreY;
-    const size = Math.round((L.portrait ? 84 : 78) * s);
+    const size = Math.round((L.portrait ? 92 : 86) * s);
     const pad = 20 * s; // space between each numeral and the dot
 
     ctx.save();
@@ -40,10 +40,10 @@ export class Hud {
     this.drawNumeral(ctx, p, px, y, size, this.pop(now, this.popPlayerAt));
     this.drawNumeral(ctx, a, ax, y, size, this.pop(now, this.popAiAt));
 
-    ctx.font = `500 ${Math.round(12 * s)}px ${FONTS.sans}`;
+    ctx.font = `700 ${Math.round(15 * s)}px ${FONTS.sans}`;
     ctx.fillStyle = COLORS.muted;
-    ctx.fillText(CONFIG.playerName, px, y + 20 * s);
-    ctx.fillText(CONFIG.opponentName, ax, y + 20 * s);
+    ctx.fillText(CONFIG.playerName, px, y + 22 * s);
+    ctx.fillText(CONFIG.opponentName, ax, y + 22 * s);
     ctx.restore();
   }
 
@@ -83,11 +83,11 @@ export class Hud {
     const a = this.flashAlpha(now);
     if (a > 0) {
       ctx.globalAlpha = a;
-      ctx.font = `italic ${Math.round(16 * s)}px ${FONTS.serif}`;
+      ctx.font = `italic ${Math.round(24 * s)}px ${FONTS.serif}`;
       ctx.fillStyle = COLORS.ink;
       ctx.fillText(this.flashText, x, L.captionY);
     } else {
-      ctx.font = `${Math.round(11.5 * s)}px ${FONTS.sans}`;
+      ctx.font = `${Math.round(19 * s)}px ${FONTS.sans}`;
       ctx.fillStyle = COLORS.muted;
       ctx.fillText(text, x, L.captionY);
     }

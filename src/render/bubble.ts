@@ -19,14 +19,14 @@ export class Bubble {
     const scale = easeOutBack(popT);
     const alpha = age > CONFIG.bubbleHoldMs ? 1 - (age - CONFIG.bubbleHoldMs) / CONFIG.bubbleFadeMs : 1;
 
-    const font = `${Math.round(15 * s)}px ${FONTS.serif}`;
+    const font = `700 ${Math.round(19 * s)}px ${FONTS.serif}`;
     ctx.save();
     ctx.font = font;
     const padX = 9 * s;
     const padY = 5 * s;
     const tw = ctx.measureText(this.text).width;
     const w = tw + padX * 2;
-    const h = 15 * s * 1.15 + padY * 2;
+    const h = 19 * s * 1.1 + padY * 2;
 
     ctx.globalAlpha = alpha;
     ctx.translate(ax, ay);
@@ -54,11 +54,11 @@ export class Bubble {
 /** The red `Grab` pill shown beside the player's paddle on hover / drag. */
 export function drawGrabTooltip(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, label = "Grab") {
   ctx.save();
-  const font = `${Math.round(13 * s)}px ${FONTS.serif}`;
+  const font = `700 ${Math.round(16 * s)}px ${FONTS.serif}`;
   ctx.font = font;
   const padX = 8 * s;
   const w = ctx.measureText(label).width + padX * 2;
-  const h = 22 * s;
+  const h = 25 * s;
   ctx.fillStyle = COLORS.bubble;
   ctx.strokeStyle = COLORS.white;
   ctx.lineWidth = 2 * s;

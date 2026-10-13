@@ -129,6 +129,6 @@ export const COLORS = {
 };
 
 export const FONTS = {
-  serif: '"Newsreader", "Source Serif 4", Georgia, "Times New Roman", serif',
-  sans: '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+  serif: '"SF Cartoonist Hand", "Comic Sans MS", "Chalkboard SE", sans-serif',
+  sans: '"SF Cartoonist Hand", "Comic Sans MS", "Chalkboard SE", sans-serif',
 };

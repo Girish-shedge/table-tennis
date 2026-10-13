@@ -71,6 +71,13 @@ const input = new Input(canvas, {
   },
 });
 
+// Make sure the canvas fonts are ready (canvas redraws every frame, so it picks them up).
+void Promise.all([
+  document.fonts.load('700 40px "SF Cartoonist Hand"'),
+  document.fonts.load('400 16px "SF Cartoonist Hand"'),
+  document.fonts.load('italic 400 16px "SF Cartoonist Hand"'),
+]);
+
 // ---- Resize ---------------------------------------------------------------
 
 function resize() {
