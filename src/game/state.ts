@@ -1,0 +1,316 @@
+import { CONFIG, type Difficulty } from "../config";
+import { clamp, damp, gaussian } from "../render/sketch";
+import { AI } from "./ai";
+import {
+  makeBall,
+  makePaddle,
+  other,
+  paddleCrossing,
+  solveShot,
+  stepBall,
+  type Ball,
+  type Paddle,
+  type Side,
+} from "./physics";
+import { serverFor, winner, type Score } from "./score";
+
+export type Phase = "MENU" | "SERVE" | "RALLY" | "POINT" | "GAME_OVER";
+
+export type PointReason = "out" | "net" | "missed" | "double" | "fault";
+
+export type GameEvent =
+  | { type: "serve"; by: Side }
+  | { type: "hit"; by: Side; speed: number }
+  | { type: "bounce"; half: Side }
+  | { type: "net" }
+  | { type: "point"; winner: Side; reason: PointReason; score: Score }
+  | { type: "gameover"; winner: Side; score: Score }
+  | { type: "phase"; phase: Phase };
+
+export type Listener = (e: GameEvent) => void;
+
+const FIXED_DT = 1 / 120;
+
+export class Game {
+  phase: Phase = "MENU";
+  difficulty: Difficulty = "medium";
+  score: Score = { player: 0, ai: 0 };
+  firstServer: Side = "player";
+  server: Side = "player";
+  lastPoint: { winner: Side; reason: PointReason } | null = null;
+
+  ball: Ball = makeBall();
+  player: Paddle = makePaddle(0, CONFIG.paddleHover, 0.35);
+  ai: AI = new AI("medium");
+  aiPaddle: Paddle = makePaddle(0, CONFIG.aiPaddleHover, CONFIG.aiPaddleZ);
+
+  /** Simulation clock in ms. */
+  now = 0;
+  private phaseAt = 0;
+  private accumulator = 0;
+  private hitCounter = 0;
+  private listeners: Listener[] = [];
+
+  /** Desired paddle target from input for this frame (drag) or null. */
+  dragTarget: { x: number; z: number } | null = null;
+  keyAxis = { x: 0, z: 0 };
+
+  on(l: Listener) {
+    this.listeners.push(l);
+  }
+  private emit(e: GameEvent) {
+    for (const l of this.listeners) l(e);
+  }
+
+  private setPhase(p: Phase) {
+    this.phase = p;
+    this.phaseAt = this.now;
+    this.emit({ type: "phase", phase: p });
+  }
+
+  // ---- Flow -------------------------------------------------------------
+
+  startMatch(difficulty: Difficulty) {
+    this.difficulty = difficulty;
+    this.ai.setDifficulty(difficulty);
+    this.ai.ramp = 0;
+    this.score = { player: 0, ai: 0 };
+    this.firstServer = "player";
+    this.lastPoint = null;
+    this.player.pos.x = 0;
+    this.player.pos.z = 0.35;
+    this.player.target = { x: 0, z: 0.35 };
+    this.aiPaddle.pos.x = 0;
+    this.aiPaddle.target.x = 0;
+    this.beginServe();
+  }
+
+  openMenu() {
+    this.ball.visible = false;
+    this.setPhase("MENU");
+  }
+
+  private beginServe() {
+    this.server = serverFor(this.firstServer, this.score);
+    const b = this.ball;
+    b.visible = true;
+    b.vel = { x: 0, y: 0, z: 0 };
+    b.lastHitter = null;
+    b.bouncedOn = null;
+    b.bounceCount = 0;
+    b.netHit = false;
+    b.trail = [];
+    this.ai.resetForPoint(this.aiPaddle);
+    this.holdBallAboveServer();
+    this.setPhase("SERVE");
+  }
+
+  private holdBallAboveServer() {
+    const b = this.ball;
+    if (this.server === "player") {
+      // Held just in front of the paddle face so it stays visible.
+      const p = this.player.pos;
+      b.pos = { x: p.x, y: p.y + 0.14, z: p.z - 0.1 };
+    } else {
+      const p = this.aiPaddle.pos;
+      b.pos = { x: p.x + 0.12, y: p.y - 0.05, z: p.z - 0.02 };
+    }
+    b.prev = { ...b.pos };
+  }
+
+  /** Space / click / tap. */
+  primary() {
+    if (this.phase === "SERVE" && this.server === "player") this.serve("player");
+    else if (this.phase === "GAME_OVER") this.startMatch(this.difficulty);
+  }
+
+  private serve(by: Side) {
+    const b = this.ball;
+    if (by === "player") {
+      const p = this.player;
+      const tx = clamp(p.pos.x * 0.4 + (Math.random() - 0.5) * 0.5 + p.vel.x * 0.15, -0.6, 0.6);
+      const tz = 1.85 + Math.random() * 0.5;
+      const speed = CONFIG.playerShotSpeed * 0.9 + clamp(p.vel.z, 0, 2) * 0.5;
+      b.vel = solveShot(b.pos, tx, tz, speed);
+    } else {
+      b.vel = this.ai.serve(b.pos);
+    }
+    b.lastHitter = by;
+    b.bouncedOn = null;
+    b.bounceCount = 0;
+    b.netHit = false;
+    this.hitCounter++;
+    (by === "player" ? this.player : this.aiPaddle).squash = 1;
+    this.emit({ type: "serve", by });
+    this.setPhase("RALLY");
+  }
+
+  private endPoint(w: Side, reason: PointReason) {
+    this.score = { ...this.score, [w]: this.score[w] + 1 };
+    this.lastPoint = { winner: w, reason };
+    this.ai.updateRamp(this.score.player, this.score.ai);
+    this.emit({ type: "point", winner: w, reason, score: this.score });
+    this.setPhase("POINT");
+  }
+
+  // ---- Update -----------------------------------------------------------
+
+  update(frameDt: number) {
+    this.accumulator += Math.min(frameDt, 0.1);
+    while (this.accumulator >= FIXED_DT) {
+      this.accumulator -= FIXED_DT;
+      this.now += FIXED_DT * 1000;
+      this.step(FIXED_DT);
+    }
+  }
+
+  private step(dt: number) {
+    if (this.phase === "MENU") return;
+    this.updatePlayerPaddle(dt);
+
+    const b = this.ball;
+    const incoming = this.phase === "RALLY" && b.lastHitter === "player";
+    if (incoming) this.ai.onIncoming(this.hitCounter, this.now, b, this.aiPaddle);
+    this.ai.update(this.aiPaddle, b, incoming, this.now, dt);
+
+    switch (this.phase) {
+      case "SERVE":
+        this.holdBallAboveServer();
+        if (this.server === "ai" && this.now - this.phaseAt > CONFIG.aiServeDelayMs) this.serve("ai");
+        break;
+      case "RALLY":
+        this.stepRally(dt);
+        break;
+      case "POINT": {
+        stepBall(b, dt, false);
+        if (b.pos.y < -0.12) b.visible = false; // dropped out of sight below the table
+        if (this.now - this.phaseAt > CONFIG.pointFreezeMs) {
+          const w = winner(this.score);
+          if (w) {
+            b.visible = false;
+            this.emit({ type: "gameover", winner: w, score: this.score });
+            this.setPhase("GAME_OVER");
+          } else {
+            this.beginServe();
+          }
+        }
+        break;
+      }
+      case "GAME_OVER":
+        break;
+    }
+  }
+
+  private updatePlayerPaddle(dt: number) {
+    const p = this.player;
+    if (this.dragTarget) {
+      p.target.x = this.dragTarget.x;
+      p.target.z = this.dragTarget.z;
+    } else {
+      p.target.x += this.keyAxis.x * CONFIG.paddleKeySpeedX * dt;
+      p.target.z += this.keyAxis.z * CONFIG.paddleKeySpeedZ * dt;
+    }
+    const xMax = CONFIG.tableW / 2 + CONFIG.paddleXMargin;
+    p.target.x = clamp(p.target.x, -xMax, xMax);
+    p.target.z = clamp(p.target.z, CONFIG.paddleZMin, CONFIG.paddleZMax);
+
+    const px = p.pos.x;
+    const pz = p.pos.z;
+    p.pos.x = damp(p.pos.x, p.target.x, CONFIG.paddleSmooth, dt);
+    p.pos.z = damp(p.pos.z, p.target.z, CONFIG.paddleSmooth, dt);
+    p.vel.x = (p.pos.x - px) / dt;
+    p.vel.z = (p.pos.z - pz) / dt;
+    p.tilt = damp(p.tilt, clamp(p.vel.x * 0.35, -0.45, 0.45), 0.08, dt);
+    p.squash = Math.max(0, p.squash - dt * 6);
+  }
+
+  private stepRally(dt: number) {
+    const b = this.ball;
+    const ev = stepBall(b, dt, true);
+
+    // Trail bookkeeping.
+    b.trail.unshift({ ...b.pos });
+    if (b.trail.length > 8) b.trail.pop();
+
+    const hitter = b.lastHitter!;
+    const receiver = other(hitter);
+
+    switch (ev.type) {
+      case "bounce":
+        this.emit({ type: "bounce", half: ev.half });
+        if (ev.half === hitter) {
+          this.endPoint(receiver, b.netHit ? "net" : "fault");
+          return;
+        }
+        if (b.bouncedOn === ev.half) {
+          b.bounceCount++;
+          if (b.bounceCount >= 2) {
+            this.endPoint(hitter, "double");
+            return;
+          }
+        } else {
+          b.bouncedOn = ev.half;
+          b.bounceCount = 1;
+        }
+        break;
+      case "net":
+        this.emit({ type: "net" });
+        break;
+      case "falloff":
+      case "floor":
+        if (b.bouncedOn === receiver) this.endPoint(hitter, "missed");
+        else this.endPoint(receiver, b.netHit ? "net" : "out");
+        return;
+      case "none":
+        break;
+    }
+
+    // Paddle hits (only the receiver may hit).
+    if (receiver === "player" && paddleCrossing(b, this.player, "player", CONFIG.paddleHitR)) {
+      this.playerHit();
+    } else if (receiver === "ai" && paddleCrossing(b, this.aiPaddle, "ai", CONFIG.aiPaddleHitR + this.ai.params.hitBonus)) {
+      this.aiHit();
+    }
+
+    // Safety: ball escaped far away.
+    if (Math.abs(b.pos.x) > 4 || b.pos.z < -2 || b.pos.z > 5) {
+      if (b.bouncedOn === receiver) this.endPoint(hitter, "missed");
+      else this.endPoint(receiver, "out");
+    }
+  }
+
+  private playerHit() {
+    const b = this.ball;
+    const p = this.player;
+    // Aim: mostly back toward the middle, angled by where on the face the ball
+    // struck and by how fast the paddle was swinging sideways. Extreme swipes
+    // or edge hits can push the shot wide.
+    const offset = b.pos.x - p.pos.x;
+    const wobble = gaussian() * 0.05;
+    const tx = clamp(b.pos.x * 0.4 + offset * 2.6 + p.vel.x * 0.26 + wobble, -0.9, 0.9);
+    const forward = clamp(p.vel.z, 0, 2.5);
+    const tz = clamp(1.8 + Math.random() * 0.5 + forward * 0.15, 1.6, 2.55);
+    const speed = CONFIG.playerShotSpeed + forward * 0.6 + Math.abs(p.vel.x) * 0.1;
+    b.vel = solveShot(b.pos, tx, tz, speed);
+    b.pos.z = p.pos.z + 0.01;
+    this.afterHit("player", speed);
+  }
+
+  private aiHit() {
+    const b = this.ball;
+    b.vel = this.ai.returnShot(b.pos, this.player.pos.x);
+    b.pos.z = this.aiPaddle.pos.z - 0.01;
+    this.afterHit("ai", Math.hypot(b.vel.x, b.vel.z));
+  }
+
+  private afterHit(by: Side, speed: number) {
+    const b = this.ball;
+    b.lastHitter = by;
+    b.bouncedOn = null;
+    b.bounceCount = 0;
+    b.netHit = false;
+    this.hitCounter++;
+    (by === "player" ? this.player : this.aiPaddle).squash = 1;
+    this.emit({ type: "hit", by, speed });
+  }
+}
