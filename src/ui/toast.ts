@@ -2,13 +2,15 @@
 let hideTimer = 0;
 let removeTimer = 0;
 
-export function showToast(text: string, warn = false, holdMs = 2200) {
+/** `kind` true or "warn" shows the red alert dot, "success" the green one. */
+export function showToast(text: string, kind: boolean | "warn" | "success" = false, holdMs = 2200) {
   const node = document.getElementById("toast");
   if (!node || !text) return;
   window.clearTimeout(hideTimer);
   window.clearTimeout(removeTimer);
   node.classList.remove("out");
-  node.classList.toggle("warn", warn);
+  node.classList.toggle("warn", kind === true || kind === "warn");
+  node.classList.toggle("success", kind === "success");
   node.textContent = text;
   node.hidden = false;
   // Restart the entrance animation when a toast replaces another.

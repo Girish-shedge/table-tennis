@@ -3,6 +3,8 @@ export interface Transport {
   onMessage(cb: (data: string) => void): void;
   onClose(cb: () => void): void;
   close(): void;
+  /** Bytes queued but not yet on the wire. Grows when the network is slower than we send. */
+  readonly buffered: number;
   readonly ready: Promise<void>;
 }
 
@@ -24,6 +26,10 @@ export class WebSocketTransport implements Transport {
       if (data) this.messageCb?.(data);
     });
     this.socket.addEventListener("close", () => this.closeCb?.());
+  }
+
+  get buffered() {
+    return this.socket.bufferedAmount;
   }
 
   send(data: string) {

@@ -52,12 +52,20 @@ export class Hud {
     const p = String(score.player);
     const a = String(score.ai);
     ctx.font = this.numeralFont(size);
-    const px = cx - pad - Math.max(ctx.measureText(p).width, size * 0.5) / 2;
-    const ax = cx + pad + Math.max(ctx.measureText(a).width, size * 0.5) / 2;
+    const numHalf = Math.max(ctx.measureText(p).width, ctx.measureText(a).width, size * 0.5) / 2;
+
+    // Each side is centred on its numeral and its name. The distance from the middle dot is whichever is
+    // larger: the usual numeral gap, or half of the longer name plus a clear space, so long names never touch.
+    const nameFont = `700 ${fontPx(16, s, 14, 20)}px ${FONTS.sans}`;
+    ctx.font = nameFont;
+    const nameHalf = Math.max(ctx.measureText(youName).width, ctx.measureText(themName).width) / 2;
+    const d = Math.max(pad + numHalf, nameHalf + 16 * s);
+    const px = cx - d;
+    const ax = cx + d;
     this.drawNumeral(ctx, p, px, y, size, this.popPlayerAt, COLORS.paddleRed, now);
     this.drawNumeral(ctx, a, ax, y, size, this.popAiAt, COLORS.paddleBlue, now);
 
-    ctx.font = `700 ${fontPx(16, s, 14, 20)}px ${FONTS.sans}`;
+    ctx.font = nameFont;
     ctx.fillStyle = COLORS.muted;
     ctx.fillText(youName, px, y + 22 * s);
     ctx.fillText(themName, ax, y + 22 * s);

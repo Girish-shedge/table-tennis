@@ -51,6 +51,7 @@
         <span id="pf-them-face" class="profile-face"></span>
         <span id="pf-them-name" class="profile-name">Bot</span>
       </div>
+      <p class="playing-with">You are playing with <span id="pw-name" class="dotted"></span></p>
     </div>
 
     <div id="emotes" role="group" aria-label="Emotes" hidden>
@@ -91,11 +92,7 @@
 
       <!-- Footer: home page only -->
       <footer class="footer">
-        <nav class="pill" aria-label="Links">
-          <a id="footer-instagram" href="#" target="_blank" rel="noopener">Instagram</a>
-          <a id="footer-x" href="#" target="_blank" rel="noopener">X</a>
-          <a id="footer-linkedin" href="#" target="_blank" rel="noopener">LinkedIn</a>
-        </nav>
+        <p>No one to play with? Text <a id="footer-contact" class="dotted" href="#" target="_blank" rel="noopener">Girish Shedge</a></p>
       </footer>
     </main>
 
@@ -161,7 +158,7 @@
         <p class="sub">Your score will be lost.</p>
         <div class="actions">
           <button id="btn-stay" class="btn primary" type="button" data-testid="bot-stay">Keep playing</button>
-          <button id="btn-quit" class="btn" type="button" data-testid="bot-leave">Leave</button>
+          <button id="btn-quit" class="btn danger" type="button" data-testid="bot-leave">Leave</button>
         </div>
       </div>
     </div>

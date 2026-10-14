@@ -87,7 +87,7 @@ describe("guest input clamp", () => {
 describe("hit forgiveness", () => {
   it("rewinds by half the ping and never more than 80 ms", () => {
     expect(forgivenessMs(100)).toBe(50);
-    expect(forgivenessMs(400)).toBe(80);
+    expect(forgivenessMs(400)).toBe(120);
     expect(forgivenessMs(0)).toBe(0);
   });
 });

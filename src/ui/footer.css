@@ -1,5 +1,4 @@
-/* Footer: shown on the home page only, at the end of the page.
-   Same sticker look as the buttons: ink outline, hard edge, no blur. */
+/* Footer: shown on the home page only, at the end of the page. */
 .footer {
   flex: none;
   width: 100%;
@@ -7,46 +6,23 @@
   justify-content: center;
   padding: 16px 16px calc(24px + env(safe-area-inset-bottom));
 }
-
-.pill {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  max-width: 100%;
+.footer p {
+  margin: 0;
+  text-align: center;
+  font: 400 var(--t-label)/1.4 var(--font);
+  color: var(--text-2);
 }
 
-.pill a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 40px;
-  padding: 8px 20px;
-  background: #fff;
+/* Names that can be tapped or that need a quiet emphasis: a dotted underline, like a hand-drawn line. */
+.dotted {
   color: var(--ink);
-  border: 2px solid var(--ink);
-  border-radius: 999px;
-  box-shadow: 0 3px 0 var(--ink);
-  text-decoration: none;
-  font: 700 var(--t-label)/1 var(--font);
-  white-space: nowrap;
-  transition: transform 0.12s, box-shadow 0.12s, background 0.12s;
+  font-weight: 700;
+  text-decoration: underline dotted 2px;
+  text-underline-offset: 4px;
 }
-.pill a:hover {
-  background: var(--primary-tint);
-  transform: translateY(-2px);
-  box-shadow: 0 5px 0 var(--ink);
+a.dotted {
+  cursor: pointer;
 }
-.pill a:active {
-  transform: translateY(2px);
-  box-shadow: 0 1px 0 var(--ink);
-}
-
-@media (max-width: 380px) {
-  .pill {
-    gap: 8px;
-  }
-  .pill a {
-    padding: 8px 16px;
-  }
+a.dotted:hover {
+  color: var(--primary-dark);
 }

@@ -93,10 +93,10 @@ export const CONFIG = {
   headHeight: 0.62, // world y of the character head above the far edge
   headRadius: 0.25, // meters, at the far edge's scale
 
-  footer: {
-    instagram: "https://www.instagram.com/girishedge_/",
-    x: "https://x.com/_girishedge_?s=11",
-    linkedin: "https://www.linkedin.com/in/girish-shedge-9337571b8/",
+  /** Home page footer: "No one to play with? Text Girish Shedge" opens WhatsApp with this message ready. */
+  contact: {
+    name: "Girish Shedge",
+    href: `https://wa.me/919373869224?text=${encodeURIComponent("Let's play tennis together")}`,
   },
 
   difficulty: {

@@ -6,10 +6,12 @@ import { net } from "../../net/client";
 import { resumeState } from "../../net/hostSim";
 import { clearSession, loadName, loadSession, saveName, saveSession, tabClaim } from "../../net/profile";
 import { initialSession, reduceSession, type Session, type SessionEvent } from "../../net/session";
-import { COPY, type MessageKey } from "../../strings";
+import { COPY, truncateName, type MessageKey } from "../../strings";
 import { mountConnChip } from "../conn";
 import { showToast } from "../toast";
 import { iconNode } from "../icons";
+import { avatarSvg } from "../avatars";
+import { peer } from "../../net/peer";
 
 export interface ScreenHooks {
   unlock: () => void;
@@ -98,6 +100,11 @@ export function mountMultiplayer(hooks: ScreenHooks) {
     $<HTMLElement>("btn-mode").hidden = true;
     $("controls").hidden = false;
   }
+
+  // The friend's avatar arrives a moment after they do: redraw the screens that show it.
+  peer.onChange(() => {
+    if (["hostReady", "guestLobby", "result", "rematch"].includes(session.screen)) render();
+  });
 
   net.on((msg) => {
     if (typeof msg === "string") return;
@@ -278,7 +285,7 @@ export function mountMultiplayer(hooks: ScreenHooks) {
     }
     try {
       await navigator.clipboard.writeText(link);
-      flash(COPY.linkCopied);
+      flash(COPY.linkCopied, "success");
     } catch {
       const field = document.getElementById("mp-link-field") as HTMLInputElement | null;
       if (field) {
@@ -290,8 +297,8 @@ export function mountMultiplayer(hooks: ScreenHooks) {
     }
   }
 
-  function flash(text: string) {
-    showToast(text);
+  function flash(text: string, kind: "success" | "warn" | false = false) {
+    showToast(text, kind);
   }
 
   function render() {
@@ -335,14 +342,46 @@ export function mountMultiplayer(hooks: ScreenHooks) {
     return wrap;
   }
 
+  /** A round avatar. Unknown (friend has not told us yet) shows a dashed "?" so the layout does not jump. */
+  function face(id: string, kind: "you" | "them", tick = false) {
+    const wrap = el("span", { class: id ? "duo-face" : "duo-face unknown", "aria-hidden": "true" });
+    if (id) wrap.innerHTML = avatarSvg(id); // static markup from our own avatar table, never user text
+    else wrap.textContent = "?";
+    if (tick) {
+      const t = el("span", { class: "tick" });
+      t.append(iconNode("tick", 16));
+      wrap.append(t);
+    }
+    wrap.dataset.kind = kind;
+    return wrap;
+  }
+
+  /** You and your friend side by side, joined by a dotted line. */
+  function duo(youName: string, themName: string, tickYou: boolean, tickThem: boolean) {
+    const row = el("div", { class: "mp-duo" });
+    const a = el("div", { class: "who you" });
+    a.append(face(peer.mine, "you", tickYou), el("span", { class: "who-name" }, youName));
+    const b = el("div", { class: "who them" });
+    b.append(face(peer.theirs, "them", tickThem), el("span", { class: "who-name" }, themName));
+    row.append(a, el("span", { class: "duo-link", "aria-hidden": "true" }), b);
+    return row;
+  }
+
   function scoreBlock(you: number, them: number, themName: string) {
     const wrap = el("div", { class: "mp-score", role: "img", "aria-label": `${COPY.scoreAria}: You ${you}, ${themName} ${them}` });
     const left = el("div", { class: "side you" });
-    left.append(el("span", { class: "num" }, String(you)), el("span", { class: "who" }, "You"));
+    left.append(miniFace(peer.mine), el("span", { class: "num" }, String(you)), el("span", { class: "who" }, "You"));
     const right = el("div", { class: "side them" });
-    right.append(el("span", { class: "num" }, String(them)), el("span", { class: "who" }, themName));
+    right.append(miniFace(peer.theirs), el("span", { class: "num" }, String(them)), el("span", { class: "who" }, themName));
     wrap.append(left, el("span", { class: "dot" }, "·"), right);
     return wrap;
+  }
+
+  function miniFace(id: string) {
+    const f = el("span", { class: id ? "mini-face" : "mini-face unknown", "aria-hidden": "true" });
+    if (id) f.innerHTML = avatarSvg(id);
+    else f.textContent = "?";
+    return f;
   }
 
   function announce(text: string) {
@@ -373,7 +412,7 @@ export function mountMultiplayer(hooks: ScreenHooks) {
 
   function paint(card: HTMLElement) {
     const s = session;
-    const peer = s.peerName ?? "Your friend";
+    const peerName = s.peerName ?? "Your friend";
 
     if (s.screen === "creating") {
       card.append(ballSpinner(), el("h1", { class: "mp-h" }, COPY.creating), el("p", { class: "sub" }, s.slow ? COPY.creatingSlow : ""));
@@ -394,7 +433,7 @@ export function mountMultiplayer(hooks: ScreenHooks) {
         button(COPY.share, "mp-share", () => void share(), true, false, true),
         pair(
           button(COPY.copyLink, "mp-copy-link", () => void share()),
-          button(COPY.copyCode, "mp-copy-code", () => void navigator.clipboard.writeText(s.code || "").then(() => flash(COPY.linkCopied)).catch(() => flash(s.code || ""))),
+          button(COPY.copyCode, "mp-copy-code", () => void navigator.clipboard.writeText(s.code || "").then(() => flash(COPY.codeCopied, "success")).catch(() => flash(s.code || ""))),
         ),
         button(COPY.cancel, "mp-cancel", () => {
           dropRoom();
@@ -408,9 +447,9 @@ export function mountMultiplayer(hooks: ScreenHooks) {
       card.classList.add("mp-split");
       const badge = el("p", { class: "info-badge mp-joined", "data-testid": "peer-joined" });
       const check = iconNode("check", 20);
-      badge.append(check, el("span", {}, `${peer} ${COPY.joined}`));
+      badge.append(miniFace(peer.theirs), el("span", {}, `${peerName} ${COPY.joined}`), check);
       card.append(el("p", { class: "mp-eyebrow" }, COPY.roomCode), codeCard(s.code || "", true), el("div", { class: "mp-spacer" }), badge);
-      announce(`${peer} ${COPY.joined}`);
+      announce(`${peerName} ${COPY.joined}`);
       card.append(actions(
         button(COPY.start, "mp-start", () => net.send({ t: "start_request" }), true, false, true),
         button(COPY.leaveRoom, "mp-cancel", () => {
@@ -418,7 +457,7 @@ export function mountMultiplayer(hooks: ScreenHooks) {
           dispatch({ type: "cancel" });
         }, false, true),
       ));
-      if (s.message === "notConnected") card.append(el("p", { class: "mp-warn", role: "status" }, `${peer} ${COPY.notConnected}`));
+      if (s.message === "notConnected") card.append(el("p", { class: "mp-warn", role: "status" }, `${peerName} ${COPY.notConnected}`));
       return;
     }
 
@@ -462,10 +501,17 @@ export function mountMultiplayer(hooks: ScreenHooks) {
 
     if (s.screen === "guestLobby") {
       const hostName = s.hostName ?? "your friend";
-      card.append(el("h1", { class: "mp-h" }, COPY.joinedTitle));
-      const wait = el("p", { class: "sub", "data-testid": "guest-wait" }, `${COPY.waitingStart} ${hostName} ${COPY.toStart}`);
-      wait.append(dots());
+      card.classList.add("mp-lobby");
+      card.append(duo(s.myName, truncateName(hostName, 12), true, false));
+      card.append(el("h1", { class: "mp-h win" }, COPY.joinedTitle));
+      const wait = el("p", { class: "mp-wait", "data-testid": "guest-wait" });
+      wait.append(`${COPY.waitingStart} `, el("span", { class: "dotted" }, hostName), ` ${COPY.toStart}`, dots());
       card.append(wait);
+      if (s.code) {
+        const room = el("p", { class: "mp-room" }, "Room ");
+        room.append(el("b", {}, s.code));
+        card.append(room);
+      }
       announce(`${COPY.joinedTitle} ${COPY.waitingStart} ${hostName} ${COPY.toStart}`);
       card.append(actions(button(COPY.leave, "mp-guest-leave", () => {
         dropRoom();
@@ -502,7 +548,7 @@ export function mountMultiplayer(hooks: ScreenHooks) {
           $("controls").hidden = true;
           hooks.onLeave();
           dispatch({ type: "confirmLeave" });
-        }),
+        }, false, false, false, true),
       );
       row.classList.add("mp-pair");
       card.append(row);
@@ -511,8 +557,8 @@ export function mountMultiplayer(hooks: ScreenHooks) {
     }
 
     if (s.screen === "result") {
-      const title = s.youWon ? COPY.youWin : `${peer} wins`;
-      card.append(el("h1", {}, title), scoreBlock(s.you, s.them, peer));
+      const title = s.youWon ? COPY.youWin : `${peerName} wins`;
+      card.append(el("h1", { class: s.youWon ? "win" : "" }, title), scoreBlock(s.you, s.them, peerName));
       announce(`${title} ${s.you} to ${s.them}`);
       const row = actions(
         button(COPY.rematch, "mp-rematch", () => {
@@ -534,8 +580,8 @@ export function mountMultiplayer(hooks: ScreenHooks) {
 
     if (s.screen === "rematch") {
       const asked = s.rematchFrom === "peer";
-      card.append(el("h1", { class: "mp-h" }, asked ? `${peer} ${COPY.wantsRematch}` : `${COPY.waitingRematch} ${peer}…`));
-      card.append(scoreBlock(s.you, s.them, peer));
+      card.append(el("h1", { class: "mp-h" }, asked ? `${peerName} ${COPY.wantsRematch}` : `${COPY.waitingRematch} ${peerName}…`));
+      card.append(scoreBlock(s.you, s.them, peerName));
       const buttons: HTMLElement[] = [];
       if (asked) {
         buttons.push(button(COPY.accept, "mp-accept", () => {
@@ -545,7 +591,7 @@ export function mountMultiplayer(hooks: ScreenHooks) {
         }, true));
       }
       buttons.push(button(COPY.leave, "mp-rematch-leave", () => dispatch({ type: "askLeave" }), false, !asked));
-      announce(asked ? `${peer} ${COPY.wantsRematch}` : `${COPY.waitingRematch} ${peer}`);
+      announce(asked ? `${peerName} ${COPY.wantsRematch}` : `${COPY.waitingRematch} ${peerName}`);
       const row = actions(...buttons);
       if (asked) row.classList.add("mp-pair");
       card.append(row);
@@ -571,7 +617,7 @@ export function mountMultiplayer(hooks: ScreenHooks) {
       }, true);
       const items: HTMLElement[] = [primary];
       if (copy.primary !== COPY.playVsBot) {
-        const bot = el("button", { class: "mp-link", type: "button", "data-testid": "play-vs-bot" }, COPY.playVsBot);
+        const bot = el("button", { class: "btn", type: "button", "data-testid": "play-vs-bot" }, COPY.playVsBot);
         bot.addEventListener("click", () => dispatch({ type: "backToMenu" }));
         items.push(bot);
       }
@@ -587,8 +633,8 @@ export function mountMultiplayer(hooks: ScreenHooks) {
     return `${COPY.expiresIn} ${m}:${String(sec).padStart(2, "0")}`;
   }
 
-  function button(label: string, testid: string, onClick: () => void, primary = false, quiet = false, hero = false) {
-    const cls = ["btn", primary ? "primary" : "", quiet ? "btn-quiet" : "", hero ? "hero" : ""].filter(Boolean).join(" ");
+  function button(label: string, testid: string, onClick: () => void, primary = false, quiet = false, hero = false, danger = false) {
+    const cls = ["btn", primary ? "primary" : "", danger ? "danger" : "", quiet ? "btn-quiet" : "", hero ? "hero" : ""].filter(Boolean).join(" ");
     const node = el("button", { class: cls, type: "button", "data-testid": testid }, label);
     node.addEventListener("click", onClick);
     return node;

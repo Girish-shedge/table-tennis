@@ -12,6 +12,7 @@ export const COPY = {
   copyLink: "Copy link",
   copyCode: "Copy code",
   linkCopied: "Link copied",
+  codeCopied: "Code copied",
   cancel: "Cancel",
   start: "Start game",
   leaveRoom: "Leave room",

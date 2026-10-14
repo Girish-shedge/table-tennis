@@ -104,9 +104,9 @@
   display: flex;
   padding: var(--mp-pad);
   overflow: auto;
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  /* No backdrop blur: the game canvas repaints behind this every frame, and blurring that is what made
+     the bouncing ball stutter on phones. A flat tint looks the same and costs nothing. */
+  background: rgba(255, 255, 255, 0.85);
 }
 #mp-root[hidden] {
   display: none;
@@ -116,8 +116,6 @@
 }
 #mp-root[data-screen="countdown"] {
   background: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
   pointer-events: none;
 }
 #mp-root > .card,
@@ -184,39 +182,10 @@
   transform: none;
   box-shadow: 0 4px 0 var(--ink);
 }
+/* Every tappable thing keeps the hard ink shadow, so "Cancel" and "Leave" read as buttons too. */
 .btn-quiet {
-  border-color: transparent;
-  background: none;
-  box-shadow: none;
-  font-weight: 400;
   font-size: var(--t-label);
-  text-decoration: underline;
-  text-underline-offset: 4px;
   min-height: 44px;
-}
-.btn-quiet:hover,
-.btn-quiet:active {
-  transform: none;
-  box-shadow: none;
-  text-decoration-thickness: 2px;
-}
-.mp-link {
-  appearance: none;
-  background: none;
-  border: 0;
-  min-height: 44px;
-  padding: 0 12px;
-  margin: 4px auto 0;
-  font: 400 var(--t-label)/1 var(--font);
-  color: var(--mp-text);
-  text-decoration: underline;
-  text-underline-offset: 4px;
-  cursor: pointer;
-  border-radius: 12px;
-}
-.mp-link:hover {
-  color: var(--ink);
-  text-decoration-thickness: 2px;
 }
 
 /* ---- Code card (host lobby) and four-box code input ---------------------- */
@@ -321,7 +290,161 @@
   margin: 4px 0 8px;
   font-size: var(--t-label);
   font-weight: 700;
+  background: var(--success-tint);
+  color: var(--success-ink);
+  border-color: var(--success);
   animation: tile-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.info-badge.mp-joined .mini-face {
+  margin: -4px 0 -4px -8px;
+}
+.info-badge.mp-joined .icon {
+  color: var(--success);
+}
+
+.mini-face {
+  flex: none;
+  display: inline-block;
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--primary-tint);
+  overflow: hidden;
+  line-height: 0;
+}
+.mini-face svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.mini-face.unknown {
+  display: inline-grid;
+  place-items: center;
+  border-style: dashed;
+  background: #fff;
+  color: var(--muted);
+  font: 700 var(--t-label)/1 var(--font);
+}
+.mp-score .mini-face {
+  width: 48px;
+  height: 48px;
+}
+.mp-score .you .mini-face {
+  background: var(--danger-tint);
+}
+.card h1.win {
+  color: var(--success-ink);
+}
+
+/* ---- Lobby: you and your friend, side by side ---------------------------- */
+.mp-duo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+.mp-duo .who {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 128px;
+}
+.mp-duo .who-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 700 var(--t-label)/1 var(--font);
+}
+.duo-face {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  background: var(--primary-tint);
+  line-height: 0;
+}
+.duo-face svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 50%;
+}
+.who.you .duo-face {
+  background: var(--danger-tint);
+}
+.duo-face.unknown {
+  display: grid;
+  place-items: center;
+  border-style: dashed;
+  background: #fff;
+  color: var(--muted);
+  font: 700 var(--t-heading)/1 var(--font);
+}
+.duo-face .tick {
+  position: absolute;
+  right: -8px;
+  bottom: -4px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 2.5px solid var(--ink);
+  border-radius: 50%;
+  background: var(--success);
+  color: #fff;
+}
+.duo-face .tick .icon {
+  --icon: 16px;
+}
+.duo-link {
+  align-self: flex-start;
+  margin-top: 36px;
+  width: 40px;
+  border-top: 3px dotted var(--ink);
+}
+.mp-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+  padding: 4px 16px;
+  border: 2px solid var(--success);
+  border-radius: 999px;
+  background: var(--success-tint);
+  color: var(--success-ink);
+  font: 700 var(--t-label)/1.2 var(--font);
+}
+.mp-status .icon {
+  --icon: 20px;
+  color: var(--success);
+}
+.mp-wait {
+  margin: 8px 0 4px;
+  color: var(--mp-text);
+  font: 400 var(--t-body)/1.4 var(--font);
+}
+.mp-room {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+  font: 400 var(--t-caption)/1 var(--font);
+  color: var(--mp-text);
+}
+.mp-room b {
+  padding: 4px 12px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font: 700 var(--t-label)/1 var(--font);
+  letter-spacing: 2px;
 }
 .mp-dots {
   display: inline-flex;
@@ -357,6 +480,8 @@
   border-radius: 50%;
   border: 2.5px solid var(--ink);
   background: #fff;
+  /* transform + will-change keeps the bounce on the GPU, so a busy page cannot make it stutter */
+  will-change: transform;
   animation: ball-bounce 0.8s cubic-bezier(0.3, 0, 0.7, 1) infinite;
 }
 .mp-ball::after {
@@ -368,6 +493,7 @@
   height: 8px;
   border-radius: 50%;
   background: var(--mp-line);
+  will-change: transform, opacity;
   animation: ball-shadow 0.8s cubic-bezier(0.3, 0, 0.7, 1) infinite;
 }
 .mp-glyph {
@@ -464,9 +590,16 @@
 .chip-conn {
   gap: 0;
   padding: 0 12px;
+  /* A status light that happens to open a number: it only needs a light touch, so no hard shadow. */
+  box-shadow: none;
+}
+.chip-conn:hover,
+.chip-conn:active {
+  transform: none;
+  box-shadow: none;
 }
 .chip-conn .bars .bar {
-  fill: var(--table);
+  fill: var(--success);
   stroke: var(--ink);
   stroke-width: 1.6;
 }
@@ -475,7 +608,8 @@
 .bars[data-bars="1"] .b2 {
   fill: #fff;
 }
-.chip-conn.weak .bars .bar {
+.chip-conn.weak .bars .bar,
+.chip-conn .bars[data-bars="1"] .b1 {
   fill: var(--danger);
 }
 .chip-conn.weak .bars[data-bars="2"] .b3,
@@ -539,7 +673,8 @@
   border-radius: 999px;
   background: #fff;
   color: var(--ink);
-  box-shadow: 0 4px 0 var(--ink);
+  /* A message, not a button: no hard shadow. */
+  box-shadow: none;
   font: 700 var(--t-label)/1.2 var(--font);
   text-align: center;
   pointer-events: none;
@@ -551,7 +686,8 @@
 .toast.out {
   animation: toast-out 0.3s ease forwards;
 }
-.toast.warn::before {
+.toast.warn::before,
+.toast.success::before {
   content: "";
   display: inline-block;
   width: 8px;
@@ -559,6 +695,19 @@
   margin-right: 8px;
   border-radius: 50%;
   background: var(--danger);
+}
+.toast.warn {
+  background: var(--danger-tint);
+  border-color: var(--danger-ink);
+  color: var(--danger-ink);
+}
+.toast.success {
+  background: var(--success-tint);
+  border-color: var(--success-ink);
+  color: var(--success-ink);
+}
+.toast.success::before {
+  background: var(--success);
 }
 
 /* Wide screens: the toast sits in the top bar, between the two control groups. */
@@ -724,22 +873,22 @@
 @keyframes ball-bounce {
   0%,
   100% {
-    translate: 0 0;
+    transform: translate3d(0, 0, 0);
     animation-timing-function: cubic-bezier(0.2, 0.6, 0.4, 1);
   }
   50% {
-    translate: 0 -32px;
+    transform: translate3d(0, -32px, 0);
     animation-timing-function: cubic-bezier(0.6, 0, 0.8, 0.4);
   }
 }
 @keyframes ball-shadow {
   0%,
   100% {
-    scale: 1;
+    transform: scale(1);
     opacity: 1;
   }
   50% {
-    scale: 0.55;
+    transform: scale(0.55);
     opacity: 0.5;
   }
 }

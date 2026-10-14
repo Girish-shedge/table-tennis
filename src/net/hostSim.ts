@@ -6,6 +6,9 @@ import type { NetClient } from "./client";
 import { GuestView } from "./guestView";
 import { clampGuestTarget, mirrorX, mirrorZ } from "./mirror";
 
+/** Round to 3 decimals (a millimetre): smaller messages, no visible difference. */
+const q = (n: number) => Math.round(n * 1000) / 1000;
+
 interface Sample {
   t: number;
   x: number;
@@ -164,12 +167,15 @@ export class OnlineMatch {
     const x = mirrorX(this.game.player.target.x);
     const z = mirrorZ(this.game.player.target.z);
     this.lastSent = { x: this.game.player.target.x, z: this.game.player.target.z };
-    this.net.send({ t: "input", seq: ++this.seq, ts: Date.now(), x, z, serve });
+    const body = { t: "input", seq: ++this.seq, ts: Date.now(), x: q(x), z: q(z), serve };
+    // A serve must arrive. A paddle position is replaced by the next one, so it may be skipped on a jammed link.
+    if (serve) this.net.send(body);
+    else this.net.sendLossy(body);
   }
 
   noteLatency(): "wait" | "slow" | null {
-    if (this.net.rttMs > 1000) return "wait";
-    if (this.net.rttMs > 400 && !this.slowWarned) {
+    if (this.net.rttMs > 1500) return "wait";
+    if (this.net.rttMs > 700 && !this.slowWarned) {
       this.slowWarned = true;
       return "slow";
     }
@@ -179,18 +185,23 @@ export class OnlineMatch {
   private sendState(kind: "state" | "state_sync" = "state") {
     const b = this.game.ball;
     const g = this.game;
-    this.net.send({
+    const body = {
       t: kind,
       tick: ++this.tick,
+      // Host clock: lets the guest keep smooth timing even when the network delivers snapshots in bursts.
+      ts: Math.round(performance.now()),
       phase: g.phase,
-      ball: { x: b.pos.x, y: b.pos.y, z: b.pos.z, vx: b.vel.x, vy: b.vel.y, vz: b.vel.z },
-      hp: { x: g.player.pos.x, z: g.player.pos.z, tilt: g.player.tilt },
-      gp: { x: g.aiPaddle.pos.x, z: g.aiPaddle.pos.z, tilt: g.aiPaddle.tilt },
+      ball: { x: q(b.pos.x), y: q(b.pos.y), z: q(b.pos.z), vx: q(b.vel.x), vy: q(b.vel.y), vz: q(b.vel.z) },
+      hp: { x: q(g.player.pos.x), z: q(g.player.pos.z), tilt: q(g.player.tilt) },
+      gp: { x: q(g.aiPaddle.pos.x), z: q(g.aiPaddle.pos.z), tilt: q(g.aiPaddle.tilt) },
       score: g.score,
       server: g.server,
       serveMs: g.phase === "SERVE" ? Math.max(0, NET.serveTimerMs - g.phaseAge) : 0,
       strikes: g.serveStrikes,
-    });
+    };
+    // A full resync must arrive; a regular snapshot is skipped if the link is still busy with the last one.
+    if (kind === "state_sync") this.net.send(body);
+    else this.net.sendLossy(body);
     if (g.phase === "GAME_OVER" && !this.reported) {
       this.reported = true;
       this.net.send({ t: "match_over", score: g.score });

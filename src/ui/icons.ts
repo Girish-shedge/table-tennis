@@ -65,6 +65,10 @@ export const ICONS: Record<string, string> = {
     <circle cx="12" cy="12" r="9.5" fill="#fff" stroke="currentColor" stroke-width="2"/>
     <path d="M7.4 12.4l3.2 3.2 6-6.6" stroke="currentColor" stroke-width="2.6"/>
   </svg>`,
+  // Bare tick, for sitting on a filled green badge
+  tick: `<svg ${base}>
+    <path d="M6 12.6l4.2 4.2 7.8-8.8" stroke="currentColor" stroke-width="3.6"/>
+  </svg>`,
   // Volume: a speaker with sound waves, or a red cross when muted
   volume: `<svg ${base}>
     <path d="M3.5 9.6h3.4l5.1-4.2v13.2l-5.1-4.2H3.5z" fill="${BLUE}" stroke="${INK}" stroke-width="2"/>

@@ -3,10 +3,14 @@ import { showToast } from "./toast";
 
 /**
  * Presents the connection text the game already writes into #conn-ping.
- * Numbers become a rounded "N ms", the bars follow 3 under 120 ms, 2 up to
- * 250 ms and 1 above that, and anything else (a warning sentence) becomes a
- * toast so the chip stays small. Presentation only: it reads the DOM text.
+ * Numbers become a rounded "N ms", the bars follow 3 under 200 ms, 2 up to 450 ms and 1 above that,
+ * and anything else (a warning sentence) becomes a toast so the chip stays small.
+ * Presentation only: it reads the DOM text.
  */
+
+/** Mobile data is often 200 to 400 ms and still plays fine, so "weak" starts well above that. */
+const WEAK_MS = 450;
+
 export function mountConnChip() {
   const chip = document.getElementById("btn-conn");
   const ping = document.getElementById("conn-ping");
@@ -30,9 +34,9 @@ export function mountConnChip() {
 
   const paint = () => {
     const now = Date.now();
-    const slowForAWhile = ms > 250 && weakSince > 0 && now - weakSince >= 5000;
+    const slowForAWhile = ms > WEAK_MS && weakSince > 0 && now - weakSince >= 6000;
     const weak = note || slowForAWhile;
-    const level = note ? 1 : ms < 120 ? 3 : ms <= 250 ? 2 : 1;
+    const level = note ? 1 : ms < 200 ? 3 : ms <= WEAK_MS ? 2 : 1;
     bars.dataset.bars = String(level);
     chip.classList.toggle("weak", weak);
     const word = weak ? COPY.connWeak : level === 3 ? COPY.connStrong : COPY.connOkay;
@@ -47,7 +51,7 @@ export function mountConnChip() {
     if (match) {
       note = false;
       ms = Math.round(Number(match[1]));
-      weakSince = ms > 250 ? weakSince || Date.now() : 0;
+      weakSince = ms > WEAK_MS ? weakSince || Date.now() : 0;
       const text = `${ms} ms`;
       if (raw !== text) {
         rewriting = true;

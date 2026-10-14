@@ -6,7 +6,9 @@ export type NetHandler = (msg: Record<string, unknown> | string) => void;
 /** One socket for the open room. Screens and the match both listen here. */
 export class NetClient {
   transport: Transport | null = null;
+  /** Smoothed round trip, so one slow ping does not flash a warning. */
   rttMs = 80;
+  private rttSamples = 0;
   private handlers = new Set<NetHandler>();
   private pingTimer = 0;
   private pingAt = 0;
@@ -18,12 +20,13 @@ export class NetClient {
 
   async connect(url: string) {
     this.close();
+    this.rttSamples = 0;
     const transport = new WebSocketTransport(url);
     this.transport = transport;
     await transport.ready;
     transport.onMessage((data) => {
       if (data === "pong" || data === "ping") {
-        if (data === "pong" && this.pingAt) this.rttMs = Math.max(1, performance.now() - this.pingAt);
+        if (data === "pong" && this.pingAt) this.noteRtt(performance.now() - this.pingAt);
         for (const handler of this.handlers) handler(data);
         return;
       }
@@ -40,7 +43,21 @@ export class NetClient {
     this.pingTimer = window.setInterval(() => {
       this.pingAt = performance.now();
       transport.send("ping");
-    }, 2000);
+    }, 1000);
+  }
+
+  private noteRtt(sample: number) {
+    const s = Math.max(1, sample);
+    this.rttMs = this.rttSamples++ === 0 ? s : this.rttMs * 0.7 + s * 0.3;
+  }
+
+  /**
+   * For state that is stale a moment later (snapshots, paddle positions). If the socket still has a
+   * backlog we skip this one: on a slow link the newest message matters, not a queue of old ones.
+   */
+  sendLossy(msg: Record<string, unknown>) {
+    if ((this.transport?.buffered ?? 0) > 8192) return;
+    this.send(msg);
   }
 
   send(msg: Record<string, unknown>) {

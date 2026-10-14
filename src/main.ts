@@ -20,7 +20,8 @@ import { mountMultiplayer } from "./ui/screens";
 import { mountIcons } from "./ui/icons";
 import { loadName, saveName } from "./net/profile";
 import { sanitizeName } from "../shared/names";
-import { AVATARS, avatarSvg, isAvatarId, loadAvatar, saveAvatar } from "./ui/avatars";
+import { AVATARS, avatarSvg } from "./ui/avatars";
+import { peer } from "./net/peer";
 
 // ---- DOM ------------------------------------------------------------------
 
@@ -36,9 +37,7 @@ const modeLabel = $<HTMLSpanElement>("mode-label");
 const overTitle = $<HTMLHeadingElement>("over-title");
 const overScore = $<HTMLParagraphElement>("over-score");
 
-$<HTMLAnchorElement>("footer-instagram").href = CONFIG.footer.instagram;
-$<HTMLAnchorElement>("footer-x").href = CONFIG.footer.x;
-$<HTMLAnchorElement>("footer-linkedin").href = CONFIG.footer.linkedin;
+$<HTMLAnchorElement>("footer-contact").href = CONFIG.contact.href;
 
 // ---- Systems --------------------------------------------------------------
 
@@ -208,7 +207,7 @@ function startMatch(d: Difficulty) {
   game.startMatch(d);
   mpYou = "";
   mpThem = "";
-  peerAvatar = "bot";
+  peer.reset();
   paintProfiles();
   modeLabel.textContent = CONFIG.difficulty[d].label;
   overlayStart.hidden = true;
@@ -322,38 +321,40 @@ mountIcons();
 
 // ---- Player avatars -------------------------------------------------------
 
-let myAvatar = loadAvatar();
-let peerAvatar = "bot";
 const profiles = $<HTMLDivElement>("profiles");
 
+/** Against Bot: your face and Bot's, small. Against a friend: one line, "You are playing with <Name>". */
 function paintProfiles() {
-  $("pf-you-face").innerHTML = avatarSvg(myAvatar);
+  const friend = !!mpThem;
+  profiles.classList.toggle("friend", friend);
+  $("pf-you-face").innerHTML = avatarSvg(peer.mine);
   $("pf-you-name").textContent = mpYou ? truncateName(mpYou) : CONFIG.playerName;
-  $("pf-them-face").innerHTML = avatarSvg(peerAvatar);
+  $("pf-them-face").innerHTML = avatarSvg(friend ? peer.theirs || "bot" : "bot");
   $("pf-them-name").textContent = themName();
+  $("pw-name").textContent = friend ? truncateName(mpThem, 16) : "";
 }
-
-function sendAvatar() {
-  // Rides on the relay's existing "emote" message (id -1 means "this is my avatar"), so no relay change is needed.
-  net.send({ t: "emote", id: -1, avatar: myAvatar });
-}
-
-net.on((msg) => {
-  if (typeof msg === "string" || msg.t !== "emote" || msg.id !== -1 || !isAvatarId(msg.avatar)) return;
-  const first = peerAvatar !== msg.avatar;
-  peerAvatar = msg.avatar;
+peer.onChange(() => {
   paintProfiles();
-  if (first && online) sendAvatar(); // answer once, in case our first message was sent before they were ready
+  syncCharacter();
 });
+
+/** The far-end head is Bot's, or the friend's chosen avatar once we know it. */
+let shownAvatar: string | null = null;
+function syncCharacter() {
+  const want = mpThem && peer.theirs ? peer.theirs : null;
+  if (want === shownAvatar) return;
+  shownAvatar = want;
+  character.setAvatar(want);
+}
 
 const picker = $<HTMLDivElement>("avatar-picker");
 const avatarDialog = $<HTMLDivElement>("avatar-dialog");
 const profileBtn = $<HTMLButtonElement>("btn-profile");
 function paintPicker() {
   for (const node of Array.from(picker.querySelectorAll<HTMLButtonElement>(".avatar"))) {
-    node.setAttribute("aria-checked", String(node.dataset.id === myAvatar));
+    node.setAttribute("aria-checked", String(node.dataset.id === peer.mine));
   }
-  $("profile-btn-face").innerHTML = avatarSvg(myAvatar);
+  $("profile-btn-face").innerHTML = avatarSvg(peer.mine);
 }
 for (const a of AVATARS) {
   const btn = document.createElement("button");
@@ -364,8 +365,7 @@ for (const a of AVATARS) {
   btn.setAttribute("aria-label", a.label);
   btn.innerHTML = `${a.svg}<span class="avatar-name">${a.label}</span>`;
   btn.addEventListener("click", () => {
-    myAvatar = a.id;
-    saveAvatar(a.id);
+    peer.setMine(a.id);
     paintPicker();
   });
   picker.append(btn);
@@ -421,9 +421,7 @@ const mp = mountMultiplayer({
     controls.hidden = false;
     mpYou = session.myName;
     mpThem = session.peerName || "Friend";
-    peerAvatar = "bot";
     paintProfiles();
-    sendAvatar();
     online?.stop();
     $("emotes").hidden = false;
     void lockWake();
@@ -443,7 +441,7 @@ const mp = mountMultiplayer({
     online = null;
     mpYou = "";
     mpThem = "";
-    peerAvatar = "bot";
+    peer.reset();
     controls.hidden = true;
     $("emotes").hidden = true;
     unlockWake();
@@ -459,7 +457,23 @@ myName = $("profile-btn-name").textContent || myName;
 
 const dev = { paused: false };
 if (import.meta.env.DEV) {
-  (window as unknown as { __tt: unknown }).__tt = { game, input, startMatch, Game, dev };
+  (window as unknown as { __tt: unknown }).__tt = {
+    game,
+    input,
+    startMatch,
+    Game,
+    dev,
+    character,
+    hud,
+    // Visual QA only: pretend a friend with this name and avatar is the opponent.
+    fakeFriend: (name: string, avatar: string) => {
+      startMatch("medium");
+      mpYou = "Girish";
+      mpThem = name;
+      peer.devSetTheirs(avatar);
+      paintProfiles();
+    },
+  };
 }
 
 // ---- Render ---------------------------------------------------------------
@@ -611,6 +625,7 @@ function frame(now: number) {
   // Cursor feedback.
   canvas.style.cursor = input.grabbing ? "grabbing" : input.hovering ? "grab" : "default";
 
+  syncCharacter();
   const a = headAnchor();
   character.update(dt, game.now, a.x, a.y);
   shake = Math.max(0, shake - dt * 7);
@@ -628,14 +643,20 @@ function frame(now: number) {
     const quiet = online.silenceMs(performance.now());
     if (slowSeconds >= 3) setConn(COPY.deviceStruggling);
     else if (quiet > 6000) setConn(`${mpThem || "Friend"} ${COPY.steppedAway}`);
-    else if (quiet > 1000 || latency === "wait") setConn(`${COPY.waiting} ${mpThem || "Friend"}…`);
+    else if (quiet > 2500 || latency === "wait") setConn(`${COPY.waiting} ${mpThem || "Friend"}…`);
     else if (latency === "slow") setConn(COPY.slowConnection);
     else setConn(`${net.rttMs} ms`);
   }
 
-  render();
+  // On the home page and lobby screens nothing on the canvas moves, so draw rarely and leave the CPU
+  // to the page's own animations (the bouncing ball) and the network.
+  if (game.phase !== "MENU" || now - lastIdleDraw > 500) {
+    lastIdleDraw = now;
+    render();
+  }
   requestAnimationFrame(frame);
 }
+let lastIdleDraw = 0;
 requestAnimationFrame(frame);
 
 let wakeLock: WakeLockSentinel | null = null;

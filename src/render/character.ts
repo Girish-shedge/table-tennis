@@ -1,5 +1,6 @@
 import { COLORS, CONFIG } from "../config";
 import type { Projection } from "./projection";
+import { avatarSprite } from "../ui/avatars";
 import { blobPoints, closedSpline, damp, wobble } from "./sketch";
 
 export type Mood = "watch" | "shock" | "dizzy" | "happy";
@@ -10,6 +11,8 @@ export type Mood = "watch" | "shock" | "dizzy" | "happy";
  */
 export class Character {
   mood: Mood = "watch";
+  /** A friend's avatar id. When set, their face is drawn instead of Bot's head. */
+  private avatar: string | null = null;
   private moodUntil = 0;
   private seed = 7;
   private x = 0;
@@ -19,6 +22,11 @@ export class Character {
   private squash = 0;
   private time = 0;
   private initialized = false;
+
+  setAvatar(id: string | null) {
+    this.avatar = id;
+    if (id) avatarSprite(id, "watch"); // start loading right away
+  }
 
   setMood(m: Mood, holdMs: number, now: number) {
     if (this.mood !== m) {
@@ -73,6 +81,17 @@ export class Character {
     ctx.rotate(this.tilt);
     const sq = this.squash;
     ctx.scale(1 + 0.08 * sq, 1 - 0.08 * sq);
+    if (this.avatar) {
+      // A friend: their chosen face, with the same bob, tilt, squash and moods as Bot.
+      const img = avatarSprite(this.avatar, this.mood);
+      if (img) {
+        const k = R * 0.042; // the avatar head is about 51 units wide inside a 76 unit box
+        ctx.drawImage(img, -40.5 * k, -40 * k, 76 * k, 76 * k);
+      }
+      ctx.restore();
+      return;
+    }
+
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
     ctx.strokeStyle = COLORS.ink;

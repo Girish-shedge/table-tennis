@@ -36,6 +36,13 @@
   --on-primary: #ffffff;
   --secondary: #ffffff;
   --danger: #f23b3b;
+  --danger-tint: #ffe9e9;
+  --danger-ink: #b42323;
+  /* Success: joined, connected, copied, you win. Alerts use the danger red above. */
+  --success: #16a34a;
+  --success-dark: #12853c;
+  --success-tint: #e3f7ea;
+  --success-ink: #0d5f2b;
   --bubble: var(--danger);
   --table: var(--primary);
   --font: "SF Cartoonist Hand", "Comic Sans MS", "Chalkboard SE", system-ui, sans-serif;
@@ -179,10 +186,12 @@ canvas#game {
   cursor: default;
   user-select: none;
 }
+.chip-static,
 .chip-static:hover,
 .chip-static:active {
+  /* A label, not a button, so no lift and no hard shadow. */
   transform: none;
-  box-shadow: 0 4px 0 var(--ink);
+  box-shadow: none;
 }
 
 /* Overlays (game over, name editor) */
@@ -437,6 +446,15 @@ canvas#game {
 .btn.primary:focus-visible {
   background: var(--primary-dark);
 }
+/* Destructive choice (leave a match): red, the alert colour. */
+.btn.danger {
+  background: var(--danger);
+  color: #fff;
+}
+.btn.danger:hover,
+.btn.danger:focus-visible {
+  background: var(--danger-ink);
+}
 
 /* Info badge */
 .info-badge {
@@ -629,6 +647,24 @@ canvas#game {
   text-overflow: ellipsis;
   white-space: nowrap;
   font: 700 var(--t-label)/1 var(--font);
+}
+
+/* Against a friend the bar is one line of text instead of two chips. */
+.playing-with {
+  display: none;
+  margin: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 400 var(--t-body)/1.2 var(--font);
+  color: var(--text-2);
+}
+.profiles.friend .profile {
+  display: none;
+}
+.profiles.friend .playing-with {
+  display: block;
 }
 
 @media (orientation: landscape) and (max-height: 520px) {

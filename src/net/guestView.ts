@@ -1,4 +1,4 @@
-import { INTERP_DELAY_MS, MAX_EXTRAPOLATE_MS } from "../../shared/constants";
+import { INTERP_DELAY_MS, MAX_EXTRAPOLATE_MS, MAX_INTERP_DELAY_MS } from "../../shared/constants";
 import { CONFIG } from "../config";
 import type { Game } from "../game/state";
 import { flipScore, flipSide, mirrorVec, mirrorX, mirrorZ } from "./mirror";
@@ -71,33 +71,59 @@ function blend(a: Snap, b: Snap, k: number): Snap {
 export class GuestView {
   private snaps: Snap[] = [];
   private newest = -1;
+  /** Host clock to local clock, set by the fastest delivery seen. null until the first snapshot. */
+  private offset: number | null = null;
+  private jitter = 0;
   lastReceivedAt = 0;
+
+  /** How far behind the newest data we draw. Grows with jitter so a bumpy link still looks smooth. */
+  get delayMs() {
+    return Math.min(MAX_INTERP_DELAY_MS, INTERP_DELAY_MS + this.jitter * 2);
+  }
 
   push(msg: Record<string, unknown>, receivedAt: number) {
     const tick = Number(msg.tick);
-    if (!Number.isFinite(tick) || tick < this.newest) return;
+    if (!Number.isFinite(tick)) return;
+    if (tick < this.newest - 60) {
+      // The host restarted its counter (it reloaded), so older ticks are not "newer" any more.
+      this.snaps = [];
+      this.newest = -1;
+      this.offset = null;
+    }
+    if (tick < this.newest) return;
     const ball = msg.ball as Snap["ball"] | undefined;
     const hp = msg.hp as Snap["hp"] | undefined;
     const score = msg.score as Snap["score"] | undefined;
     if (!ball || !hp || !score) return;
     this.newest = tick;
     this.lastReceivedAt = receivedAt;
+    // Place the snapshot on the host's timeline. Snapshots that arrive late or in a burst keep their
+    // true spacing instead of being bunched up, which is what made the ball stutter on mobile data.
+    let at = receivedAt;
+    const ts = Number(msg.ts);
+    if (Number.isFinite(ts)) {
+      const raw = receivedAt - ts;
+      if (this.offset === null || raw < this.offset) this.offset = raw;
+      else this.offset += Math.min(0.5, raw - this.offset); // drift up slowly so a route change recovers
+      this.jitter = this.jitter * 0.95 + Math.min(300, raw - this.offset) * 0.05;
+      at = ts + this.offset;
+    }
     this.snaps.push({
       tick,
-      receivedAt,
+      receivedAt: at,
       phase: String(msg.phase || "RALLY"),
       ball,
       hp,
       score,
       server: msg.server === "ai" ? "ai" : "player",
     });
-    const cutoff = receivedAt - 1000;
+    const cutoff = at - 1500;
     while (this.snaps.length > 2 && this.snaps[0].receivedAt < cutoff) this.snaps.shift();
   }
 
   /** Write the opponent and the ball. The guest's own paddle is left alone. */
   apply(game: Game, now: number) {
-    const snap = sampleSnapshots(this.snaps, now);
+    const snap = sampleSnapshots(this.snaps, now, this.delayMs);
     if (!snap) return;
     const ball = { x: mirrorX(snap.ball.x), y: snap.ball.y, z: mirrorZ(snap.ball.z) };
     const vel = mirrorVec({ x: snap.ball.vx, y: snap.ball.vy, z: snap.ball.vz });
