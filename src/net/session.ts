@@ -44,6 +44,7 @@ export type SessionEvent =
   | { type: "peerJoined"; name: string }
   | { type: "peerLeft"; name: string; why: string }
   | { type: "start" }
+  | { type: "guestStart" }
   | { type: "startRejected"; message: string }
   | { type: "countdownDone" }
   | { type: "matchOver"; youWon: boolean; you: number; them: number }
@@ -139,6 +140,9 @@ export function reduceSession(s: Session, e: SessionEvent): Session {
       return message(s, e.message);
     case "start":
       if (s.screen !== "hostReady") return s;
+      return { ...s, screen: "countdown" };
+    case "guestStart":
+      if (s.screen !== "guestLobby" && s.screen !== "reconnect") return s;
       return { ...s, screen: "countdown" };
     case "startRejected":
       return s.screen === "hostReady" ? { ...s, message: e.message } : s;

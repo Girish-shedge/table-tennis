@@ -1,5 +1,6 @@
 import "./ui/styles.css";
 import "./ui/footer.css";
+import "./ui/mp.css";
 
 import { Audio } from "./audio";
 import { COLORS, CONFIG, type Difficulty } from "./config";
@@ -12,6 +13,7 @@ import { Hud } from "./render/hud";
 import { AI_STYLE, PLAYER_STYLE, drawPaddle, drawPaddleShadow, paddleScreen } from "./render/paddle";
 import { Projection, computeLayout, type Layout } from "./render/projection";
 import { drawNet, drawTable } from "./render/table";
+import { mountMultiplayer } from "./ui/screens";
 
 // ---- DOM ------------------------------------------------------------------
 
@@ -47,6 +49,8 @@ const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matc
 let shake = 0;
 let netShimmer = 0;
 
+let onEscape = () => {};
+
 const input = new Input(canvas, {
   toWorld: (sx, sy) => P.unprojectToPlane(sx, sy, CONFIG.paddleHover),
   hitPaddle: (sx, sy) => {
@@ -65,7 +69,7 @@ const input = new Input(canvas, {
     game.primary();
   },
   onMute: () => setMuted(!audio.muted),
-  onEscape: () => {},
+  onEscape: () => onEscape(),
 });
 
 // Make sure the canvas fonts are ready (canvas redraws every frame, so it picks them up).
@@ -180,6 +184,9 @@ function startMatch(d: Difficulty) {
   overlayStart.hidden = true;
   overlayOver.hidden = true;
   controls.hidden = false;
+  $<HTMLButtonElement>("btn-conn").hidden = true;
+  $<HTMLButtonElement>("btn-leave").hidden = true;
+  $<HTMLElement>("btn-mode").hidden = false;
   (document.activeElement as HTMLElement | null)?.blur?.();
 }
 
@@ -209,6 +216,22 @@ $("start-hint").textContent =
 $("over-hint").textContent = input.kind === "touch" ? "Tap to play again" : "Space or tap to play again";
 
 drawCardArt();
+
+mountMultiplayer({
+  unlock: () => audio.unlock(),
+  onMatch: () => {
+    overlayStart.hidden = true;
+    overlayOver.hidden = true;
+    controls.hidden = false;
+  },
+  onLeave: () => {
+    controls.hidden = true;
+    showMenu();
+  },
+  setEscape: (fn) => {
+    onEscape = fn;
+  },
+});
 
 const dev = { paused: false };
 if (import.meta.env.DEV) {

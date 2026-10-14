@@ -1,0 +1,17 @@
+/* Day 1 layout only. Visual design is Day 2. */
+.mp-card { max-width: 420px; }
+.mp-code { display: flex; gap: 8px; justify-content: center; margin: 12px 0; }
+.mp-code input {
+  width: 52px;
+  height: 52px;
+  text-align: center;
+  font: inherit;
+  font-size: var(--t-heading);
+  text-transform: uppercase;
+}
+.mp-spaced { letter-spacing: 0.35em; font-size: var(--t-title); margin: 8px 0; }
+#mp-root { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; pointer-events: none; }
+#mp-root .card { pointer-events: auto; }
+#mp-root[hidden] { display: none; }
+.mp-actions { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 12px; }
+.mp-actions .btn { width: 100%; }

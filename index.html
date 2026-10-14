@@ -19,6 +19,10 @@
       <span id="btn-mode" class="chip chip-static" title="Difficulty is locked for this match">
         <span id="mode-label">Medium</span>
       </span>
+      <button id="btn-conn" class="chip" type="button" data-testid="connection" hidden title="Connection">
+        <span id="conn-bars" aria-hidden="true">▮▮▮</span>
+        <span id="conn-ping"></span>
+      </button>
       <button id="btn-mute" class="chip chip-icon" type="button" title="Mute (M)" aria-pressed="false">
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
           <path class="spk" d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" />
@@ -27,6 +31,7 @@
           <path class="mute-x" d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
         </svg>
       </button>
+      <button id="btn-leave" class="chip chip-icon" type="button" data-testid="leave-match" hidden title="Leave">×</button>
     </div>
 
     <!-- Start / difficulty screen -->
@@ -47,6 +52,14 @@
           <button class="mode" data-mode="hard" type="button">
             <span class="mode-name">Hard</span>
           </button>
+        </div>
+        <div id="mp-entry" hidden>
+          <p id="mp-divider" class="hint" data-testid="mp-divider"></p>
+          <div class="actions">
+            <button id="btn-host" class="btn" type="button" data-testid="host-game"></button>
+            <button id="btn-join" class="btn" type="button" data-testid="join-code"></button>
+          </div>
+          <p class="hint"><span id="mp-playing-as"></span> <button id="btn-name" class="btn" type="button" data-testid="player-name"></button></p>
         </div>
         <p class="info-badge">
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
@@ -71,6 +84,8 @@
         <p class="hint" id="over-hint">Space or tap to play again</p>
       </div>
     </div>
+
+    <div id="mp-root" hidden></div>
 
     <!-- Footer pill -->
     <footer class="footer">

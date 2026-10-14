@@ -31,6 +31,18 @@ describe("session flows §4.6", () => {
     expect(s.message).toBe("unreachable");
   });
 
+  it("guest countdown starts from the guest lobby", () => {
+    const s = play([
+      { type: "openJoin" },
+      { type: "submitCode" },
+      { type: "joined", token: "t", playerId: "g", hostName: "Girish" },
+      { type: "guestStart" },
+      { type: "countdownDone" },
+    ]);
+    expect(s.screen).toBe("match");
+    expect(s.role).toBe("guest");
+  });
+
   it("guest by code lands in the guest lobby", () => {
     const s = play([
       { type: "openJoin" },
