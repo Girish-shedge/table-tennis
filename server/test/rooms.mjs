@@ -35,7 +35,8 @@ function assert(cond, msg) {
 }
 
 async function api(path, opts = {}) {
-  const res = await fetch(base + path, opts);
+  const headers = { "x-test-ip": "rooms", ...(opts.headers ?? {}) };
+  const res = await fetch(base + path, { ...opts, headers });
   const text = await res.text();
   let body = null;
   try {

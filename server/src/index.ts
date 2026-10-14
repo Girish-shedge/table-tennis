@@ -1,10 +1,23 @@
-import { isRoomCode, randomRoomCode } from "../../shared/constants";
+import { isRoomCode, MAX_LOOKUPS_PER_IP_PER_MIN, MAX_ROOMS_PER_IP_PER_MIN, randomRoomCode } from "../../shared/constants";
 import type { Env } from "./env";
-import { corsHeaders, json, originAllowed } from "./http";
+import { Gate } from "./gate";
+import { clientIp, corsHeaders, json, originAllowed } from "./http";
 import { Room } from "./room";
 
 export type { Env };
-export { Room };
+export { Room, Gate };
+
+function gate(env: Env): DurableObjectStub<Gate> {
+  return env.GATE.get(env.GATE.idFromName("limits")) as DurableObjectStub<Gate>;
+}
+
+function rateIp(request: Request): string {
+  if (localRequest(request)) {
+    const testIp = request.headers.get("x-test-ip");
+    if (testIp) return testIp.slice(0, 64);
+  }
+  return clientIp(request);
+}
 
 function stub(env: Env, code: string): DurableObjectStub<Room> {
   return env.ROOM.get(env.ROOM.idFromName(code)) as DurableObjectStub<Room>;
@@ -60,7 +73,7 @@ export default {
 
     if (url.pathname === "/api/rooms" && request.method === "POST") return createRoom(request, env, cors);
     const preview = url.pathname.match(/^\/api\/rooms\/([A-Za-z]{4})$/);
-    if (preview && request.method === "GET") return previewRoom(preview[1].toUpperCase(), env, cors);
+    if (preview && request.method === "GET") return previewRoom(preview[1].toUpperCase(), env, cors, request);
     const join = url.pathname.match(/^\/api\/rooms\/([A-Za-z]{4})\/join$/);
     if (join && request.method === "POST") return joinRoom(join[1].toUpperCase(), request, env, cors);
     const extend = url.pathname.match(/^\/api\/rooms\/([A-Za-z]{4})\/extend$/);
@@ -99,6 +112,9 @@ async function createRoom(request: Request, env: Env, cors: Headers): Promise<Re
   if (!body || typeof body.name !== "string" || typeof body.v !== "number") {
     return json({ error: "BAD_REQUEST" }, 400, cors);
   }
+  if (!(await gate(env).allow(`create:${rateIp(request)}`, MAX_ROOMS_PER_IP_PER_MIN, 60_000))) {
+    return json({ error: "RATE_LIMITED" }, 429, cors);
+  }
   if (typeof body.previousCode === "string" && typeof body.previousToken === "string") {
     const previous = body.previousCode.toUpperCase();
     if (isRoomCode(previous)) await stub(env, previous).closeByHost(body.previousToken);
@@ -116,8 +132,11 @@ async function createRoom(request: Request, env: Env, cors: Headers): Promise<Re
   return json({ error: "RATE_LIMITED" }, 429, cors);
 }
 
-async function previewRoom(code: string, env: Env, cors: Headers): Promise<Response> {
+async function previewRoom(code: string, env: Env, cors: Headers, request: Request): Promise<Response> {
   if (!isRoomCode(code)) return json({ error: "ROOM_NOT_FOUND" }, 404, cors);
+  if (!(await gate(env).allow(`lookup:${rateIp(request)}`, MAX_LOOKUPS_PER_IP_PER_MIN, 60_000))) {
+    return json({ error: "RATE_LIMITED" }, 429, cors);
+  }
   const result = await stub(env, code).preview();
   if (!result.ok) return json({ error: result.error }, result.status, cors);
   return json({ status: result.status, hostName: result.hostName }, 200, cors);
@@ -125,6 +144,9 @@ async function previewRoom(code: string, env: Env, cors: Headers): Promise<Respo
 
 async function joinRoom(code: string, request: Request, env: Env, cors: Headers): Promise<Response> {
   if (!isRoomCode(code)) return json({ error: "ROOM_NOT_FOUND" }, 404, cors);
+  if (!(await gate(env).allow(`lookup:${rateIp(request)}`, MAX_LOOKUPS_PER_IP_PER_MIN, 60_000))) {
+    return json({ error: "RATE_LIMITED" }, 429, cors);
+  }
   const body = await readBody(request);
   if (!body || typeof body.name !== "string" || typeof body.v !== "number") {
     return json({ error: "BAD_REQUEST" }, 400, cors);

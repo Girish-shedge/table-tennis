@@ -5,9 +5,12 @@ import {
   JOIN_WINDOW_MS,
   LOBBY_INACTIVITY_MS,
   MAX_EXTENSIONS,
+  MAX_MESSAGE_BYTES,
+  MAX_MESSAGES_PER_SEC,
   PROTOCOL_VERSION,
   RECONNECT_WINDOW_MS,
 } from "../../shared/constants";
+import { disambiguate, sanitizeName } from "../../shared/names";
 import { parseJsonMessage, type Checkpoint, type Role, type RoomStatus, type SideName } from "../../shared/protocol";
 import type { Env } from "./env";
 
@@ -58,6 +61,7 @@ const LIVE = new Set<RoomStatus>(["WAITING", "LOBBY_FULL", "COUNTDOWN", "PLAYING
 
 export class Room extends DurableObject<Env> {
   private data: RoomData | null = null;
+  private rate = new Map<string, { t: number; n: number }>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -142,7 +146,7 @@ export class Room extends DurableObject<Env> {
     { ok: true; playerId: string; token: string; expiresAt: number } | Fail
   > {
     if (input.v !== PROTOCOL_VERSION) return { ok: false, status: 409, error: "VERSION_MISMATCH" };
-    const name = input.name.trim();
+    const name = sanitizeName(input.name);
     if (!name) return { ok: false, status: 400, error: "BAD_NAME" };
     this.expireIfDue();
     if (this.active()) return { ok: false, status: 409, error: "COLLISION" };
@@ -199,12 +203,13 @@ export class Room extends DurableObject<Env> {
     { ok: true; playerId: string; token: string; hostName: string } | Fail
   > {
     if (input.v !== PROTOCOL_VERSION) return { ok: false, status: 409, error: "VERSION_MISMATCH" };
-    const name = input.name.trim();
-    if (!name) return { ok: false, status: 400, error: "BAD_NAME" };
+    const cleaned = sanitizeName(input.name);
+    if (!cleaned) return { ok: false, status: 400, error: "BAD_NAME" };
     this.expireIfDue();
     if (!this.data || this.data.status === "ENDED") return { ok: false, status: 404, error: "ROOM_NOT_FOUND" };
     if (this.data.status === "EXPIRED") return { ok: false, status: 410, error: "ROOM_EXPIRED" };
     if (this.data.status !== "WAITING" || this.data.guestId) return { ok: false, status: 409, error: "ROOM_FULL" };
+    const name = disambiguate(cleaned, this.data.hostName);
     const playerId = crypto.randomUUID();
     this.data.guestId = playerId;
     this.data.guestName = name;
@@ -310,15 +315,38 @@ export class Room extends DurableObject<Env> {
   }
 
   async webSocketMessage(ws: WebSocket, message: ArrayBuffer | string): Promise<void> {
-    if (typeof message !== "string") return;
-    if (message === "ping" || message === "pong") return;
+    const raw = typeof message === "string" ? message : new TextDecoder().decode(message);
     const info = ws.deserializeAttachment() as SockInfo | null;
     if (!info || !this.data) {
-      ws.send(message);
+      if (raw.length <= MAX_MESSAGE_BYTES) ws.send(message);
       return;
     }
-    const msg = parseJsonMessage(message);
-    if (!msg) return;
+    if (new TextEncoder().encode(raw).byteLength > MAX_MESSAGE_BYTES) {
+      try {
+        ws.close(1009, "too large");
+      } catch {
+        /* already closed */
+      }
+      return;
+    }
+    if (this.flooded(info.playerId)) {
+      try {
+        ws.close(1008, "rate");
+      } catch {
+        /* already closed */
+      }
+      return;
+    }
+    if (raw === "ping" || raw === "pong") return;
+    const msg = parseJsonMessage(raw);
+    if (!msg) {
+      try {
+        ws.close(1003, "malformed");
+      } catch {
+        /* already closed */
+      }
+      return;
+    }
     if (msg.v !== PROTOCOL_VERSION) {
       ws.send(JSON.stringify({ t: "error", v: PROTOCOL_VERSION, error: "VERSION_MISMATCH" }));
       return;
@@ -447,6 +475,18 @@ export class Room extends DurableObject<Env> {
     this.save();
     this.sendTo(other, { t: "peer_left", v: PROTOCOL_VERSION, name, why: "forfeit" });
     this.sendTo(other, { t: "room_closed", v: PROTOCOL_VERSION, why: "forfeit" });
+  }
+
+  private flooded(id: string): boolean {
+    const now = Date.now();
+    const bucket = this.rate.get(id) ?? { t: now, n: 0 };
+    if (now - bucket.t >= 1000) {
+      bucket.t = now;
+      bucket.n = 0;
+    }
+    bucket.n += 1;
+    this.rate.set(id, bucket);
+    return bucket.n > MAX_MESSAGES_PER_SEC;
   }
 
   private openEcho(): Response {

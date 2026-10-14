@@ -9,6 +9,14 @@ ALLOWED_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173,https://tabel-ten
 name = "ROOM"
 class_name = "Room"
 
+[[durable_objects.bindings]]
+name = "GATE"
+class_name = "Gate"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Room"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Gate"]

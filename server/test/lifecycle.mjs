@@ -13,8 +13,10 @@ function assert(cond, msg) {
   if (!cond) throw new Error(msg);
 }
 
+let rateSlot = 0;
 async function api(path, opts = {}) {
-  const res = await fetch(base + path, opts);
+  const headers = { "x-test-ip": `lifecycle-${rateSlot++}`, ...(opts.headers ?? {}) };
+  const res = await fetch(base + path, { ...opts, headers });
   const text = await res.text();
   let body = null;
   try {
