@@ -6,3 +6,6 @@ dist
 frame_*.png
 .dev.vars
 .wrangler/
+test-results/
+playwright-report/
+blob-report/

@@ -48,6 +48,9 @@ const character = new Character();
 const P = new Projection();
 let layout: Layout = computeLayout(window.innerWidth, window.innerHeight);
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+/** Dev-only: the host returns everything and the guest misses, so a match can finish. */
+const driveMiss = import.meta.env.DEV && new URLSearchParams(location.search).get("drive") === "miss";
+let drovePoint = -1;
 
 let shake = 0;
 let netShimmer = 0;
@@ -409,6 +412,23 @@ function frame(now: number) {
   if (!running) return;
   const dt = Math.min((now - last) / 1000, 0.1);
   last = now;
+
+  if (driveMiss && online) {
+    const edge = CONFIG.tableW / 2 + CONFIG.paddleXMargin;
+    if (online.role === "host") {
+      input.dragTarget = {
+        x: game.ball.pos.x,
+        z: Math.min(CONFIG.paddleZMax, Math.max(CONFIG.paddleZMin, game.ball.pos.z)),
+      };
+    } else {
+      input.dragTarget = { x: edge, z: CONFIG.paddleZMin };
+    }
+    const point = game.score.player + game.score.ai;
+    if (game.phase === "SERVE" && game.server === "player" && drovePoint !== point) {
+      drovePoint = point;
+      online.primary();
+    }
+  }
 
   game.keyAxis = input.axis();
   game.dragTarget = input.dragTarget;

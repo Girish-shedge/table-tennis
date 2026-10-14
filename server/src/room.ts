@@ -386,6 +386,13 @@ export class Room extends DurableObject<Env> {
       await this.schedule(null, null);
       return;
     }
+    if (msg.t === "rematch_accept" && (this.data.status === "ENDED" || this.data.status === "PLAYING")) {
+      this.data.status = "COUNTDOWN";
+      this.data.dropped = null;
+      this.data.checkpoint = null;
+      this.save();
+      return;
+    }
     if (msg.t === "leave") {
       await this.onLeave(info.role);
     }
