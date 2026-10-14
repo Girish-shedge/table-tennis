@@ -26,6 +26,10 @@ function clampFar(x: number, z: number): { x: number; z: number } {
  * Host runs the match and sends snapshots. Guest only eases its own paddle
  * and draws interpolated snapshots, mirrored so it stands at the near end.
  */
+export const resumeState: { checkpoint: { score: { player: number; ai: number }; server: "player" | "ai" } | null } = {
+  checkpoint: null,
+};
+
 export class OnlineMatch {
   private clock = new FixedClock();
   private view = new GuestView();
@@ -38,6 +42,8 @@ export class OnlineMatch {
   private tick = 0;
   private reported = false;
   private live = true;
+  paused = false;
+  private slowWarned = false;
   private guestServeMs = 0;
   private guestStrikes = 0;
   private off: () => void;
@@ -54,6 +60,10 @@ export class OnlineMatch {
     this.onGuestEvent = hooks?.onGuestEvent ?? (() => {});
     this.onFriendEmote = hooks?.onFriendEmote ?? (() => {});
     this.game.enterOnline(role);
+    if (resumeState.checkpoint && role === "host") {
+      this.game.restoreServe(resumeState.checkpoint.score, resumeState.checkpoint.server);
+      resumeState.checkpoint = null;
+    }
     this.game.on((e) => this.forwardEvent(e));
     this.off = this.net.on((msg) => this.onNet(msg));
   }
@@ -74,7 +84,21 @@ export class OnlineMatch {
     this.game.leaveOnline();
   }
 
+  silenceMs(now: number) {
+    if (!this.viewLast()) return 0;
+    return now - this.viewLast();
+  }
+
+  private viewLast() {
+    return this.role === "guest" ? this.viewLastAt() : 0;
+  }
+
+  private viewLastAt() {
+    return (this.view as GuestView).lastReceivedAt;
+  }
+
   frame(dt: number) {
+    if (this.paused) return;
     if (this.role === "host") {
       this.clock.advance(dt, (step) => {
         const forgiven = this.rewind();
@@ -124,6 +148,7 @@ export class OnlineMatch {
     if (e.type === "point") {
       body.winner = e.winner;
       body.reason = e.reason;
+      this.net.send({ t: "checkpoint", score: this.game.score, server: this.game.server });
     }
     this.net.send(body);
   }
@@ -152,11 +177,20 @@ export class OnlineMatch {
     this.net.send({ t: "input", seq: ++this.seq, ts: Date.now(), x, z, serve });
   }
 
-  private sendState() {
+  noteLatency(): "wait" | "slow" | null {
+    if (this.net.rttMs > 1000) return "wait";
+    if (this.net.rttMs > 400 && !this.slowWarned) {
+      this.slowWarned = true;
+      return "slow";
+    }
+    return null;
+  }
+
+  private sendState(kind: "state" | "state_sync" = "state") {
     const b = this.game.ball;
     const g = this.game;
     this.net.send({
-      t: "state",
+      t: kind,
       tick: ++this.tick,
       phase: g.phase,
       ball: { x: b.pos.x, y: b.pos.y, z: b.pos.z, vx: b.vel.x, vy: b.vel.y, vz: b.vel.z },
@@ -176,6 +210,11 @@ export class OnlineMatch {
 
   private onNet(msg: Record<string, unknown> | string) {
     if (typeof msg === "string") return;
+    if (msg.t === "pause" || msg.t === "away") this.paused = true;
+    if (msg.t === "resume" || msg.t === "back") this.paused = false;
+    if ((msg.t === "hello" || msg.t === "peer_joined") && this.role === "host" && this.game.externalSim) {
+      this.sendState("state_sync");
+    }
     if (this.role === "guest" && msg.t === "event") {
       if (msg.kind === "idle") {
         if (this.game.server === "player") this.net.send({ t: "leave" });

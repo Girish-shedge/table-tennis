@@ -2,6 +2,7 @@ import { isRoomCode, ROOM_CODE_ALPHABET } from "../../../shared/constants";
 import { NET } from "../../config";
 import { ApiError, createRoom, extendRoom, joinRoom, previewRoom, wsUrl } from "../../net/api";
 import { net } from "../../net/client";
+import { resumeState } from "../../net/hostSim";
 import { clearSession, loadName, loadSession, saveName, saveSession, tabClaim } from "../../net/profile";
 import { initialSession, reduceSession, type Session, type SessionEvent } from "../../net/session";
 import { COPY, type MessageKey } from "../../strings";
@@ -59,6 +60,8 @@ export function mountMultiplayer(hooks: ScreenHooks) {
   let rematchTimer = 0;
   let expiresAt = 0;
   let ignoreClose = false;
+  let playing = false;
+  let backingOff = false;
   const tab = { id: crypto.randomUUID(), at: Date.now() };
 
   $("mp-playing-as").textContent = COPY.playingAs;
@@ -76,6 +79,7 @@ export function mountMultiplayer(hooks: ScreenHooks) {
   }
 
   function goMatch() {
+    playing = true;
     window.clearInterval(countdownTimer);
     dispatch({ type: "countdownDone" });
     hooks.onMatch(session);
@@ -99,15 +103,53 @@ export function mountMultiplayer(hooks: ScreenHooks) {
       if (session.screen !== "countdown" && session.screen !== "match") dispatch({ type: "guestStart" });
       showCount(Number(msg.n));
     }
+    if (msg.t === "hello") {
+      const cp = msg.checkpoint as { score?: { player: number; ai: number }; server?: string } | null;
+      if (!playing && cp?.score && (cp.server === "player" || cp.server === "ai")) {
+        resumeState.checkpoint = { score: cp.score, server: cp.server };
+      }
+      const status = String(msg.roomStatus || "");
+      if (session.screen === "reconnect") dispatch({ type: "reconnected" });
+      if (!playing && (status === "PLAYING" || status === "PAUSED" || status === "COUNTDOWN")) {
+        const peer = msg.peer as { name?: string } | null;
+        if (peer?.name) session = { ...session, peerName: peer.name };
+        playing = true;
+        hooks.onMatch(session);
+      }
+    }
     if (msg.t === "error" && msg.error === "DUPLICATE_TAB") dispatch({ type: "roomClosed", message: "duplicate" });
     if (msg.t === "socket_closed") {
       if (ignoreClose) {
         ignoreClose = false;
         return;
       }
-      if (session.screen !== "start" && session.screen !== "message") dispatch({ type: "disconnected" });
+      if (session.screen === "match" || session.screen === "countdown") {
+        dispatch({ type: "disconnected" });
+        void backoff();
+      } else if (session.screen !== "start" && session.screen !== "message") dispatch({ type: "disconnected" });
     }
   });
+
+  async function backoff() {
+    if (backingOff) return;
+    backingOff = true;
+    const saved = loadSession();
+    const delays = [1000, 2000, 4000, 5000];
+    const started = Date.now();
+    let i = 0;
+    while (saved && Date.now() - started < NET.reconnectWindowMs && session.screen === "reconnect") {
+      await new Promise((resolve) => window.setTimeout(resolve, delays[Math.min(i, delays.length - 1)]));
+      i++;
+      try {
+        await connect(saved.code, saved.token, saved.role);
+        backingOff = false;
+        return;
+      } catch {
+        /* try again */
+      }
+    }
+    backingOff = false;
+  }
 
   async function connect(code: string, token: string, role: "host" | "guest") {
     saveSession({ code, playerId: session.playerId || "", token, role });
@@ -468,6 +510,13 @@ export function mountMultiplayer(hooks: ScreenHooks) {
     const node = document.getElementById("mp-expiry");
     if (node) node.textContent = expiryText();
   }, 1000);
+
+  const saved = loadSession();
+  if (saved && !new URLSearchParams(location.search).get("room")) {
+    session = { ...session, role: saved.role, code: saved.code, token: saved.token, playerId: saved.playerId, screen: "reconnect", underneath: "match" };
+    render();
+    void connect(saved.code, saved.token, saved.role).catch(() => dispatch({ type: "roomClosed", message: "unreachable" }));
+  }
 
   const params = new URLSearchParams(location.search);
   const room = params.get("room");

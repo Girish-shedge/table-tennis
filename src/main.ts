@@ -3,7 +3,7 @@ import "./ui/footer.css";
 import "./ui/mp.css";
 
 import { Audio } from "./audio";
-import { COLORS, CONFIG, type Difficulty } from "./config";
+import { COLORS, CONFIG, NET, type Difficulty } from "./config";
 import { Input } from "./game/input";
 import { Game, type GameEvent, type PointReason } from "./game/state";
 import { drawBall, drawBallShadow, hiddenByTable } from "./render/ball";
@@ -257,6 +257,7 @@ const mp = mountMultiplayer({
     mpThem = session.peerName || "Friend";
     online?.stop();
     $("emotes").hidden = false;
+    void lockWake();
     online = new OnlineMatch(game, net, session.role === "guest" ? "guest" : "host", (youWon, you, them) => {
       mp?.noteResult(youWon, you, them);
     }, {
@@ -274,6 +275,7 @@ const mp = mountMultiplayer({
     mpThem = "";
     controls.hidden = true;
     $("emotes").hidden = true;
+    unlockWake();
     showMenu();
   },
   setEscape: (fn) => {
@@ -389,6 +391,17 @@ function render() {
 
 let last = performance.now();
 let running = true;
+let fpsFrames = 0;
+let fpsStamp = performance.now();
+let slowSeconds = 0;
+let connNote = "";
+
+function setConn(text: string) {
+  if (connNote === text) return;
+  connNote = text;
+  const node = document.getElementById("conn-ping");
+  if (node) node.textContent = text;
+}
 
 function frame(now: number) {
   if (!running) return;
@@ -410,18 +423,63 @@ function frame(now: number) {
   shake = Math.max(0, shake - dt * 7);
   netShimmer = Math.max(0, netShimmer - dt * 3);
 
+  if (online) {
+    fpsFrames++;
+    if (now - fpsStamp >= 1000) {
+      if (online.role === "host" && fpsFrames < NET.hostLowFps) slowSeconds++;
+      else slowSeconds = 0;
+      fpsFrames = 0;
+      fpsStamp = now;
+    }
+    const latency = online.noteLatency();
+    const quiet = online.silenceMs(performance.now());
+    if (slowSeconds >= 3) setConn(COPY.deviceStruggling);
+    else if (quiet > 6000) setConn(`${mpThem || "Friend"} ${COPY.steppedAway}`);
+    else if (quiet > 1000 || latency === "wait") setConn(`${COPY.waiting} ${mpThem || "Friend"}…`);
+    else if (latency === "slow") setConn(COPY.slowConnection);
+    else setConn(`${net.rttMs} ms`);
+  }
+
   render();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
+let wakeLock: WakeLockSentinel | null = null;
+
+async function lockWake() {
+  try {
+    wakeLock = await navigator.wakeLock?.request("screen");
+  } catch {
+    wakeLock = null;
+  }
+}
+
+function unlockWake() {
+  wakeLock?.release().catch(() => {});
+  wakeLock = null;
+}
+
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
+    if (online) {
+      if (online.role === "host") net.send({ t: "pause", reason: "host_hidden" });
+      else net.send({ t: "away" });
+      online.paused = true;
+    }
     running = false;
   } else if (!running) {
     running = true;
     last = performance.now();
     requestAnimationFrame(frame);
+    if (online) {
+      window.setTimeout(() => {
+        if (!online) return;
+        if (online.role === "host") net.send({ t: "resume", in: 2 });
+        else net.send({ t: "back" });
+        online.paused = false;
+      }, 2000);
+    }
   }
 });
 

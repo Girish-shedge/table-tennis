@@ -71,6 +71,7 @@ function blend(a: Snap, b: Snap, k: number): Snap {
 export class GuestView {
   private snaps: Snap[] = [];
   private newest = -1;
+  lastReceivedAt = 0;
 
   push(msg: Record<string, unknown>, receivedAt: number) {
     const tick = Number(msg.tick);
@@ -80,6 +81,7 @@ export class GuestView {
     const score = msg.score as Snap["score"] | undefined;
     if (!ball || !hp || !score) return;
     this.newest = tick;
+    this.lastReceivedAt = receivedAt;
     this.snaps.push({
       tick,
       receivedAt,

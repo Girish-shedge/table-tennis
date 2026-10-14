@@ -378,6 +378,15 @@ export class Game {
     this.forgivenFar = forgiven;
   }
 
+  restoreServe(score: { player: number; ai: number }, server: Side) {
+    this.score = { player: score.player, ai: score.ai };
+    this.server = server;
+    this.ball = makeBall();
+    this.ball.visible = true;
+    this.holdBallAboveServer();
+    this.setPhase("SERVE");
+  }
+
   queueFarServe() {
     if (this.mpRole === "host" && this.phase === "SERVE" && this.server === "ai") {
       this.serveStrikes = 0;
