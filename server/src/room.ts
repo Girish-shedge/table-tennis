@@ -11,7 +11,7 @@ import {
   RECONNECT_WINDOW_MS,
 } from "../../shared/constants";
 import { disambiguate, sanitizeName } from "../../shared/names";
-import { parseJsonMessage, type Checkpoint, type Role, type RoomStatus, type SideName } from "../../shared/protocol";
+import { FORWARDED, parseJsonMessage, type Checkpoint, type Role, type RoomStatus, type SideName } from "../../shared/protocol";
 import type { Env } from "./env";
 
 interface SockInfo {
@@ -65,6 +65,7 @@ export class Room extends DurableObject<Env> {
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
+    this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
     ctx.blockConcurrencyWhile(async () => {
       this.ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS room (
         id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -351,6 +352,7 @@ export class Room extends DurableObject<Env> {
       ws.send(JSON.stringify({ t: "error", v: PROTOCOL_VERSION, error: "VERSION_MISMATCH" }));
       return;
     }
+    if (FORWARDED.has(msg.t)) this.sendRaw(info.role === "host" ? "guest" : "host", raw);
     if (msg.t === "start_request" && info.role === "host") {
       if (this.data.status !== "LOBBY_FULL" || !this.connected("guest")) {
         const name = this.data.guestName ?? "Your friend";
@@ -389,6 +391,16 @@ export class Room extends DurableObject<Env> {
     }
   }
 
+  async webSocketError(ws: WebSocket): Promise<void> {
+    const info = ws.deserializeAttachment() as SockInfo | null;
+    try {
+      ws.close(1006, "error");
+    } catch {
+      /* already closed */
+    }
+    if (info) await this.onDisconnect(info.role, ws);
+  }
+
   async webSocketClose(ws: WebSocket, code: number, reason: string): Promise<void> {
     const info = ws.deserializeAttachment() as SockInfo | null;
     try {
@@ -422,6 +434,7 @@ export class Room extends DurableObject<Env> {
       this.sendTo(other, { t: "peer_left", v: PROTOCOL_VERSION, name, why: "away" });
       return;
     }
+    if (this.data.dropped === role) return;
     const other: Role = role === "host" ? "guest" : "host";
     const name = role === "host" ? this.data.hostName : this.data.guestName ?? "Friend";
     if (this.data.dropped && this.data.dropped !== role) {
@@ -535,6 +548,13 @@ export class Room extends DurableObject<Env> {
       if (info?.role === role && ws.readyState === WebSocket.OPEN) return true;
     }
     return false;
+  }
+
+  private sendRaw(role: Role, raw: string) {
+    for (const ws of this.ctx.getWebSockets()) {
+      const info = ws.deserializeAttachment() as SockInfo | null;
+      if (info?.role === role && ws.readyState === WebSocket.OPEN) ws.send(raw);
+    }
   }
 
   private sendTo(role: Role, msg: unknown) {
