@@ -42,18 +42,20 @@ export const ICONS: Record<string, string> = {
     `<path d="M7.6 9.6l2.8 2.8M10.4 9.6l-2.8 2.8M13.6 9.6l2.8 2.8M16.4 9.6l-2.8 2.8" stroke="${INK}" stroke-width="1.8"/>`,
     `<path d="M8.6 17c2-2.2 4.8-2.2 6.8 0" stroke="${INK}" stroke-width="2"/>`,
   ),
-  // Host: a paper plane, for sending an invite
+  // Host: your red paddle with a blue "+" badge, for starting a new table
   host: `<svg ${base}>
-    <path d="M2.8 11.4L21 3.6l-5 16.6-4.6-5.8z" fill="#fff" stroke="${INK}" stroke-width="2"/>
-    <path d="M11.4 14.4L21 3.6" stroke="${INK}" stroke-width="2"/>
-    <path d="M11.4 14.4l-.4 5.2 3-2.8z" fill="${BLUE}" stroke="${INK}" stroke-width="2"/>
+    <rect x="7.6" y="13.6" width="4.8" height="8.6" rx="2" fill="#fff" stroke="${INK}" stroke-width="2"/>
+    <circle cx="10" cy="9" r="7.2" fill="${RED}" stroke="${INK}" stroke-width="2"/>
+    <path d="M5.9 7.6a4.8 4.8 0 0 1 2.6-2.8" stroke="#fff" stroke-width="1.8"/>
+    <circle cx="18.6" cy="17.4" r="4.4" fill="${BLUE}" stroke="${INK}" stroke-width="2"/>
+    <path d="M18.6 15.4v4M16.6 17.4h4" stroke="#fff" stroke-width="2.2"/>
   </svg>`,
-  // Join: two code tiles, the first with a typing cursor
+  // Join: a key, because the 4-letter code is what lets you in
   join: `<svg ${base}>
-    <rect x="2.5" y="5.5" width="8.5" height="13" rx="2.4" fill="#fff" stroke="${INK}" stroke-width="2"/>
-    <rect x="13" y="5.5" width="8.5" height="13" rx="2.4" fill="#fff" stroke="${INK}" stroke-width="2"/>
-    <path d="M6.75 9.4v5.2" stroke="${BLUE}" stroke-width="2.4"/>
-    <circle cx="17.25" cy="12" r="1.4" fill="${INK}"/>
+    <path d="M12.4 12h9.4M17.4 12v4M21 12v3" stroke="${INK}" stroke-width="3"/>
+    <circle cx="7.4" cy="12" r="5.8" fill="${BLUE}" stroke="${INK}" stroke-width="2"/>
+    <circle cx="7.4" cy="12" r="1.9" fill="#fff" stroke="${INK}" stroke-width="1.8"/>
+    <path d="M4.2 10a3.8 3.8 0 0 1 1.8-1.8" stroke="#fff" stroke-width="1.6"/>
   </svg>`,
   // Help: a ball with a question mark
   help: `<svg ${base}>

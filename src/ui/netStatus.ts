@@ -2,7 +2,7 @@ import { pingRelay } from "../net/api";
 import { COPY } from "../strings";
 
 /**
- * "Your network: Good" under Play with a friend. Times round trips to the relay and uses the
+ * "Your network: Good" (text only) under Play with a friend. Times round trips to the relay and uses the
  * same bands as the in-match connection chip (under 200 ms good, up to 450 ms okay, above that weak).
  * It only measures while the home page is on screen, so an idle tab costs one request every 30 s.
  */
@@ -14,10 +14,9 @@ type Level = "checking" | "good" | "okay" | "weak" | "offline";
 
 export function mountNetStatus(relayUrl: string) {
   const line = document.getElementById("net-status");
-  const bars = document.getElementById("net-bars");
   const word = document.getElementById("net-word");
   const home = document.getElementById("overlay-start");
-  if (!line || !bars || !word || !home) return;
+  if (!line || !word || !home) return;
   line.hidden = false;
 
   let samples: number[] = [];
@@ -29,7 +28,6 @@ export function mountNetStatus(relayUrl: string) {
 
   const paint = (level: Level, ms = 0) => {
     line.dataset.level = level;
-    bars.dataset.bars = level === "good" ? "3" : level === "okay" ? "2" : level === "weak" ? "1" : "0";
     word.textContent = {
       checking: COPY.netChecking,
       good: COPY.netGood,
