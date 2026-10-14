@@ -88,19 +88,9 @@ export class AI {
     this.targetX = paddle.pos.x;
   }
 
-  /** Velocity for a return shot toward the player's half. */
+  /** Velocity for a return shot toward the player's half. Bot never misses on purpose: it only loses a point by failing to reach a good shot. */
   returnShot(from: Vec3, playerX: number): Vec3 {
     const p = this.params;
-    const faultChance = { easy: 0.11, medium: 0.065, hard: 0.03 }[this.difficulty];
-    if (Math.random() < faultChance * (1 - 0.4 * this.ramp)) {
-      // Deliberate mistake: either wide or into the net.
-      if (Math.random() < 0.5) {
-        const side = Math.random() < 0.5 ? -1 : 1;
-        return solveShot(from, side * 0.95, 0.6 + Math.random() * 0.4, p.returnSpeed);
-      }
-      return solveShot(from, (Math.random() - 0.5) * 0.6, 1.25, p.returnSpeed * 1.1, { ignoreNet: true });
-    }
-
     const awayFromPlayer = -Math.sign(playerX || (Math.random() - 0.5));
     const sideSign = Math.random() < p.cornerBias ? awayFromPlayer : Math.random() < 0.5 ? -1 : 1;
     let tx = sideSign * (0.1 + Math.random() * p.aimSpread) + gaussian() * this.sigma * 0.7;

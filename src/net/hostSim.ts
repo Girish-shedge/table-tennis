@@ -30,7 +30,7 @@ export class OnlineMatch {
   private target: { x: number; z: number } | null = null;
   private snapAcc = 0;
   private inputAcc = 0;
-  private lastSent = { x: 999, z: 999 };
+  private lastSent = { x: 999, z: 999, p: -1 };
   private seq = 0;
   private tick = 0;
   private reported = false;
@@ -115,7 +115,10 @@ export class OnlineMatch {
     this.game.update(dt);
     this.view.apply(this.game, performance.now());
     this.inputAcc += dt;
-    const due = Math.abs(this.game.player.target.x - this.lastSent.x) > 0.002 || Math.abs(this.game.player.target.z - this.lastSent.z) > 0.002;
+    const due =
+      Math.abs(this.game.player.target.x - this.lastSent.x) > 0.002 ||
+      Math.abs(this.game.player.target.z - this.lastSent.z) > 0.002 ||
+      Math.abs(this.game.playerPower - this.lastSent.p) > 0.02;
     const period = due ? 1 / INPUT_HZ : 1 / INPUT_KEEPALIVE_HZ;
     if (this.inputAcc >= period) {
       this.inputAcc = 0;
@@ -166,8 +169,10 @@ export class OnlineMatch {
   private sendInput(serve: boolean) {
     const x = mirrorX(this.game.player.target.x);
     const z = mirrorZ(this.game.player.target.z);
-    this.lastSent = { x: this.game.player.target.x, z: this.game.player.target.z };
-    const body = { t: "input", seq: ++this.seq, ts: Date.now(), x: q(x), z: q(z), serve };
+    const p = Math.round(this.game.playerPower * 100) / 100;
+    this.lastSent = { x: this.game.player.target.x, z: this.game.player.target.z, p };
+    // `p` is the guest's shot power. The relay forwards input unchanged, so no relay or protocol change.
+    const body = { t: "input", seq: ++this.seq, ts: Date.now(), x: q(x), z: q(z), p, serve };
     // A serve must arrive. A paddle position is replaced by the next one, so it may be skipped on a jammed link.
     if (serve) this.net.send(body);
     else this.net.sendLossy(body);
@@ -243,6 +248,8 @@ export class OnlineMatch {
       const next = clampGuestTarget(Number(msg.x), Number(msg.z));
       if (!Number.isFinite(next.x) || !Number.isFinite(next.z)) return;
       this.target = this.limitSpeed(next);
+      const power = Number(msg.p);
+      this.game.farPower = Number.isFinite(power) ? Math.min(1, Math.max(0, power)) : 0;
       this.samples.push({ t: this.game.now, x: this.target.x, z: this.target.z });
       const cutoff = this.game.now - 500;
       while (this.samples.length && this.samples[0].t < cutoff) this.samples.shift();

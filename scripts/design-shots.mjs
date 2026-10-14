@@ -70,6 +70,24 @@ for (const size of only) {
   await shot(page, "08-countdown", size);
   await mp(page, "api.dispatch({type:'askLeave'})");
   await shot(page, "13-leave-dialog", size);
+  await mp(page, "api.dispatch({type:'backToMenu'})");
+
+  // ---- vs Bot: power bar, serve preview, scoreboard, leave dialog -------
+  await page.getByTestId("play-bot").click();
+  await page.locator('.option[data-mode="medium"]').click();
+  await page.waitForTimeout(1200);
+  await shot(page, "15-bot-serve-soft", size);
+  await page.keyboard.down("ArrowDown");
+  await page.waitForTimeout(480);
+  await page.keyboard.up("ArrowDown");
+  await shot(page, "15b-bot-serve-sweet", size);
+  await page.keyboard.down("ArrowDown");
+  await page.waitForTimeout(300);
+  await page.keyboard.up("ArrowDown");
+  await shot(page, "15c-bot-serve-risky", size);
+  await page.keyboard.press("Escape");
+  await shot(page, "15d-bot-leave", size);
+  await page.getByTestId("bot-leave").click();
   for (const key of messages) {
     await mp(page, "api.dispatch({type:'backToMenu'}); api.dispatch({type:'roomClosed',message:a})", key);
     await shot(page, `14-msg-${key}`, size);

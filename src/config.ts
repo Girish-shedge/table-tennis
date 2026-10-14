@@ -80,7 +80,7 @@ export const CONFIG = {
   aiPaddleHover: 0.26,
   aiPaddleArtScale: 0.52,
   aiPaddleHitR: 0.09, // base hit radius; difficulty adds `hitBonus`
-  aiDistanceError: 0.14, // extra tracking error per meter the AI must travel
+  aiDistanceError: 0.1, // extra tracking error per meter the AI must travel
   aiServeDelayMs: 900,
 
   // Flow
@@ -102,9 +102,9 @@ export const CONFIG = {
   difficulty: {
     easy: {
       label: "Easy",
-      reactionMs: 260,
-      sigma: 0.09,
-      speedCap: 1.0,
+      reactionMs: 230,
+      sigma: 0.08,
+      speedCap: 1.4,
       returnSpeed: 3.6,
       serveSpeed: 3.6,
       aimSpread: 0.35,
@@ -113,9 +113,9 @@ export const CONFIG = {
     },
     medium: {
       label: "Medium",
-      reactionMs: 170,
-      sigma: 0.075,
-      speedCap: 1.4,
+      reactionMs: 160,
+      sigma: 0.07,
+      speedCap: 1.7,
       returnSpeed: 4.3,
       serveSpeed: 4.1,
       aimSpread: 0.5,
@@ -125,13 +125,13 @@ export const CONFIG = {
     hard: {
       label: "Hard",
       reactionMs: 100,
-      sigma: 0.04,
-      speedCap: 1.9,
+      sigma: 0.065,
+      speedCap: 2.0,
       returnSpeed: 5.2,
       serveSpeed: 4.7,
       aimSpread: 0.62,
       cornerBias: 0.7,
-      hitBonus: 0.04,
+      hitBonus: 0.03,
     },
   } as Record<Difficulty, DifficultyParams>,
 };

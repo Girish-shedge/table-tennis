@@ -41,17 +41,15 @@
       </div>
     </div>
 
-    <!-- Who is playing: your pick and your opponent, small, near the bottom -->
-    <div id="profiles" class="profiles" hidden>
-      <div class="profile you">
-        <span id="pf-you-face" class="profile-face"></span>
-        <span id="pf-you-name" class="profile-name">You</span>
-      </div>
-      <div class="profile them">
-        <span id="pf-them-face" class="profile-face"></span>
-        <span id="pf-them-name" class="profile-name">Bot</span>
-      </div>
-      <p class="playing-with">You are playing with <span id="pw-name" class="dotted"></span></p>
+    <!-- Shot power: pull the paddle back to charge it. Bottom of the screen during a match. -->
+    <div id="power" class="power" hidden role="meter" aria-label="Shot power" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <span class="power-label" aria-hidden="true">Power</span>
+      <span class="power-track" aria-hidden="true">
+        <span class="power-fill"></span>
+        <span class="power-sweet"></span>
+        <span class="power-risk"></span>
+      </span>
+      <span id="power-state" class="power-state" aria-hidden="true">Soft</span>
     </div>
 
     <div id="emotes" role="group" aria-label="Emotes" hidden>
@@ -80,7 +78,7 @@
         <img class="home-icon" src="/icon.png" width="160" height="160" alt="Table Tennis" />
         <h1>Table Tennis</h1>
         <p class="sub">Quick hand-drawn rallies. Beat Bot, or challenge a friend.</p>
-        <button id="btn-vsbot" class="btn primary hero play" type="button" data-testid="play-bot">You vs Bot</button>
+        <button id="btn-vsbot" class="btn primary play" type="button" data-testid="play-bot">You vs Bot</button>
         <div id="mp-entry" class="mp-entry" hidden>
           <p id="mp-divider" class="mp-divider" data-testid="mp-divider"></p>
           <div class="actions">
@@ -140,10 +138,11 @@
         <h1 id="help-title" class="mp-h">How to play</h1>
         <ul class="howto">
           <li><span class="howto-icon" aria-hidden="true">1</span><p><strong>Move</strong><span>Arrow keys or A, D, W, S. Or drag the paddle with the mouse. On a phone, drag anywhere on the screen.</span></p></li>
-          <li><span class="howto-icon" aria-hidden="true">2</span><p><strong>Serve</strong><span>Press Space, or tap, when it's your serve. The serve switches every 2 points.</span></p></li>
-          <li><span class="howto-icon" aria-hidden="true">3</span><p><strong>Score</strong><span>Land the ball on your opponent's half. A miss, a net, an out or a double bounce gives them the point.</span></p></li>
-          <li><span class="howto-icon" aria-hidden="true">4</span><p><strong>Win</strong><span>First to 11 points, and you must win by 2.</span></p></li>
-          <li><span class="howto-icon" aria-hidden="true">5</span><p><strong>Extras</strong><span>Press M to mute. Press Esc or tap the X to leave a match. Playing a friend? Send them an emote.</span></p></li>
+          <li><span class="howto-icon" aria-hidden="true">2</span><p><strong>Power</strong><span>Hold the paddle and pull it back (or hold Down) to charge the bar. No power drops the ball just past the net. The green sweet spot is the most accurate. Too much and the ball flies out.</span></p></li>
+          <li><span class="howto-icon" aria-hidden="true">3</span><p><strong>Serve</strong><span>Press Space, or tap, when it's your serve. The dotted line shows where it will land. The serve switches every 2 points.</span></p></li>
+          <li><span class="howto-icon" aria-hidden="true">4</span><p><strong>Score</strong><span>Land the ball on your opponent's half. A miss, a net, an out or a double bounce gives them the point.</span></p></li>
+          <li><span class="howto-icon" aria-hidden="true">5</span><p><strong>Win</strong><span>First to 11 points, and you must win by 2.</span></p></li>
+          <li><span class="howto-icon" aria-hidden="true">6</span><p><strong>Extras</strong><span>Press M to mute. Press Esc or tap the X to leave a match. Playing a friend? Send them an emote.</span></p></li>
         </ul>
         <div class="actions single">
           <button id="help-done" class="btn primary" type="button">Got it</button>
@@ -158,7 +157,7 @@
         <p class="sub">Your score will be lost.</p>
         <div class="actions">
           <button id="btn-stay" class="btn primary" type="button" data-testid="bot-stay">Keep playing</button>
-          <button id="btn-quit" class="btn danger" type="button" data-testid="bot-leave">Leave</button>
+          <button id="btn-quit" class="btn" type="button" data-testid="bot-leave">Leave</button>
         </div>
       </div>
     </div>

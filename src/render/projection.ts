@@ -19,8 +19,8 @@ export interface Projected {
   scale: number;
 }
 
-const LANDSCAPE = { w: 1136, h: 718, scoreY: 0.095, farY: 0.41, nearY: 0.82, nearW: 0.524, captionY: 0.875 };
-const PORTRAIT = { w: 720, h: 1100, scoreY: 0.075, farY: 0.36, nearY: 0.79, nearW: 0.92, captionY: 0.835 };
+const LANDSCAPE = { w: 1136, h: 718, scoreY: 0.13, farY: 0.41, nearY: 0.82, nearW: 0.524, captionY: 0.875 };
+const PORTRAIT = { w: 720, h: 1100, scoreY: 0.11, farY: 0.36, nearY: 0.79, nearW: 0.92, captionY: 0.835 };
 
 export function computeLayout(W: number, H: number): Layout {
   const portrait = W < H * 1.05;

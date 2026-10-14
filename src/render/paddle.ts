@@ -6,12 +6,11 @@ import { roundRect } from "./sketch";
 export interface PaddleStyle {
   face: string;
   faceDark: string;
-  hand: boolean;
   artScale: number;
 }
 
-export const PLAYER_STYLE: PaddleStyle = { face: COLORS.paddleRed, faceDark: COLORS.paddleRedDark, hand: true, artScale: 1 };
-export const AI_STYLE: PaddleStyle = { face: COLORS.paddleBlue, faceDark: "#2F5F9A", hand: false, artScale: CONFIG.aiPaddleArtScale };
+export const PLAYER_STYLE: PaddleStyle = { face: COLORS.paddleRed, faceDark: COLORS.paddleRedDark, artScale: 1 };
+export const AI_STYLE: PaddleStyle = { face: COLORS.paddleBlue, faceDark: "#2F5F9A", artScale: CONFIG.aiPaddleArtScale };
 
 /** Screen-space info for hit testing and tooltips. */
 export interface PaddleScreen {
@@ -130,38 +129,5 @@ function paddleBody(ctx: CanvasRenderingContext2D, p: Paddle, style: PaddleStyle
   ctx.arc(0, 0, R * 0.7, Math.PI * 1.1, Math.PI * 1.42);
   ctx.stroke();
 
-  // Grip hand icon.
-  if (style.hand && R > 18) drawHand(ctx, 0, R * 0.08, R * 0.26);
-
-  ctx.restore();
-}
-
-function drawHand(ctx: CanvasRenderingContext2D, x: number, y: number, size: number) {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.fillStyle = "rgba(255,255,255,0.95)";
-  ctx.strokeStyle = "rgba(255,255,255,0.95)";
-  ctx.lineCap = "round";
-  // Palm.
-  ctx.beginPath();
-  ctx.ellipse(0, size * 0.25, size * 0.5, size * 0.55, 0, 0, Math.PI * 2);
-  ctx.fill();
-  // Fingers.
-  ctx.lineWidth = size * 0.26;
-  const fingers = [
-    { x: -0.42, len: 0.65 },
-    { x: -0.14, len: 0.85 },
-    { x: 0.14, len: 0.8 },
-    { x: 0.42, len: 0.6 },
-  ];
-  ctx.beginPath();
-  for (const f of fingers) {
-    ctx.moveTo(f.x * size, 0);
-    ctx.lineTo(f.x * size, -f.len * size);
-  }
-  // Thumb.
-  ctx.moveTo(-size * 0.45, size * 0.4);
-  ctx.lineTo(-size * 0.9, size * 0.05);
-  ctx.stroke();
   ctx.restore();
 }

@@ -13,11 +13,14 @@ import { Hud } from "./render/hud";
 import { AI_STYLE, PLAYER_STYLE, drawPaddle, drawPaddleShadow, paddleScreen } from "./render/paddle";
 import { Projection, computeLayout, type Layout } from "./render/projection";
 import { drawNet, drawTable } from "./render/table";
+import { drawServePreview } from "./render/preview";
+import { inSweetSpot, outRisk } from "./game/shot";
 import { net } from "./net/client";
 import { OnlineMatch } from "./net/hostSim";
 import { COPY, truncateName } from "./strings";
 import { mountMultiplayer } from "./ui/screens";
 import { mountIcons } from "./ui/icons";
+import { mountPress } from "./ui/press";
 import { loadName, saveName } from "./net/profile";
 import { sanitizeName } from "../shared/names";
 import { AVATARS, avatarSvg } from "./ui/avatars";
@@ -141,6 +144,8 @@ function reasonText(winner: "player" | "ai", reason: PointReason): string {
 }
 
 game.on((e: GameEvent) => {
+  // Power is spent on every shot you play, and starts from zero each point.
+  if (((e.type === "serve" || e.type === "hit") && e.by === "player") || e.type === "point") input.resetPull();
   switch (e.type) {
     case "serve":
       audio.hit(0.6);
@@ -205,10 +210,10 @@ function showMenu() {
 function startMatch(d: Difficulty) {
   audio.unlock();
   game.startMatch(d);
+  input.resetPull();
   mpYou = "";
   mpThem = "";
   peer.reset();
-  paintProfiles();
   modeLabel.textContent = CONFIG.difficulty[d].label;
   overlayStart.hidden = true;
   overlayOver.hidden = true;
@@ -318,25 +323,34 @@ for (const btn of Array.from(document.querySelectorAll<HTMLButtonElement>("#emot
 $("over-hint").textContent = input.kind === "touch" ? "Tap to play again" : "Space or tap to play again";
 
 mountIcons();
+mountPress();
+
+// ---- Power bar ------------------------------------------------------------
+
+const powerBar = $<HTMLDivElement>("power");
+const powerState = $<HTMLSpanElement>("power-state");
+let shownPower = -1;
+
+/** Writes only when the rounded value changes, so the bar costs nothing while it is still. */
+function paintPower(p: number) {
+  const pct = Math.round(p * 100);
+  if (pct === shownPower) return;
+  shownPower = pct;
+  const sweet = inSweetSpot(p);
+  const risky = outRisk(p) > 0;
+  powerBar.style.setProperty("--power", String(pct / 100));
+  powerBar.classList.toggle("sweet", sweet);
+  powerBar.classList.toggle("risky", risky);
+  const state = risky ? COPY.powerRisky : sweet ? COPY.powerSweet : pct === 0 ? COPY.powerSoft : COPY.powerCharging;
+  powerState.textContent = state;
+  powerBar.setAttribute("aria-valuenow", String(pct));
+  powerBar.setAttribute("aria-valuetext", `${pct}%, ${state}`);
+}
+paintPower(0);
 
 // ---- Player avatars -------------------------------------------------------
 
-const profiles = $<HTMLDivElement>("profiles");
-
-/** Against Bot: your face and Bot's, small. Against a friend: one line, "You are playing with <Name>". */
-function paintProfiles() {
-  const friend = !!mpThem;
-  profiles.classList.toggle("friend", friend);
-  $("pf-you-face").innerHTML = avatarSvg(peer.mine);
-  $("pf-you-name").textContent = mpYou ? truncateName(mpYou) : CONFIG.playerName;
-  $("pf-them-face").innerHTML = avatarSvg(friend ? peer.theirs || "bot" : "bot");
-  $("pf-them-name").textContent = themName();
-  $("pw-name").textContent = friend ? truncateName(mpThem, 16) : "";
-}
-peer.onChange(() => {
-  paintProfiles();
-  syncCharacter();
-});
+peer.onChange(() => syncCharacter());
 
 /** The far-end head is Bot's, or the friend's chosen avatar once we know it. */
 let shownAvatar: string | null = null;
@@ -408,9 +422,9 @@ nameField.addEventListener("keydown", (e) => {
 });
 wireDialog(avatarDialog, closeAvatars);
 
-// The profile bar follows the top bar: visible during a match, hidden on the home page.
+// The power bar follows the top bar: visible during a match, hidden on the home page.
 new MutationObserver(() => {
-  profiles.hidden = controls.hidden;
+  powerBar.hidden = controls.hidden;
 }).observe(controls, { attributes: true, attributeFilter: ["hidden"] });
 
 const mp = mountMultiplayer({
@@ -421,7 +435,7 @@ const mp = mountMultiplayer({
     controls.hidden = false;
     mpYou = session.myName;
     mpThem = session.peerName || "Friend";
-    paintProfiles();
+    input.resetPull();
     online?.stop();
     $("emotes").hidden = false;
     void lockWake();
@@ -471,7 +485,6 @@ if (import.meta.env.DEV) {
       mpYou = "Girish";
       mpThem = name;
       peer.devSetTheirs(avatar);
-      paintProfiles();
     },
   };
 }
@@ -495,7 +508,7 @@ function captionText(): string {
   }
   if (game.phase === "SERVE") return touch ? COPY.serveYouTouch : COPY.serveYouKeys;
   if (game.phase === "GAME_OVER") return "";
-  return touch ? "Drag to move" : "Arrow keys to move · Space to serve";
+  return touch ? COPY.rallyTouch : COPY.rallyKeys;
 }
 
 function render() {
@@ -554,6 +567,10 @@ function render() {
 
   // 6. Net.
   drawNet(ctx, P, s, netShimmer);
+
+  // 6b. Your serve: dotted flight and landing ring, so you can plan where it goes.
+  const preview = game.phase === "SERVE" ? game.servePreview() : null;
+  if (preview) drawServePreview(ctx, P, preview, s, outRisk(game.playerPower) > 0);
 
   if (game.phase !== "MENU") {
     const ball = game.ball;
@@ -617,6 +634,9 @@ function frame(now: number) {
 
   game.keyAxis = input.axis();
   game.dragTarget = input.dragTarget;
+  input.tickPull(dt);
+  game.playerPower = input.pull;
+  if (!powerBar.hidden) paintPower(input.pull);
   if (!dev.paused) {
     if (online) online.frame(dt);
     else game.update(dt);

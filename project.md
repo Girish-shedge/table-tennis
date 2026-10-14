@@ -15,15 +15,15 @@ This is the single source of truth for the project. It started as the build brie
 
 | | |
 |---|---|
-| **Status** | v2.0 live (14 Oct 2026): vs-Bot plus online multiplayer (Part 2). Day 1 and Day 2 multiplayer work complete; real-device test (S-1) and edge-case sweep (S-2) still to do |
+| **Status** | v2.1 live (15 Oct 2026): shot power, serve preview, a steadier Bot and UI polish (§30.4) on top of v2.0 online multiplayer (Part 2). Real-device test (S-1) and edge-case sweep (S-2) still to do |
 | **Live game** | [tabel-tennis.vercel.app](https://tabel-tennis.vercel.app) |
 | **Other live URLs** | [table-tennis-alpha-jet.vercel.app](https://table-tennis-alpha-jet.vercel.app) (original Vercel address, still works) |
 | **Source code** | [github.com/Girish-shedge/table-tennis](https://github.com/Girish-shedge/table-tennis) (public, branch `main`) |
 | **Hosting** | Vercel, connected to GitHub. Every push to `main` deploys to production automatically. |
 | **Multiplayer relay** | Cloudflare Worker `tt-relay` at `https://tt-relay.girish-tt.workers.dev` (code in `server/`, deployed with `wrangler`). The client uses `wss://tt-relay.girish-tt.workers.dev`, set as `VITE_RELAY_URL` in Vercel (Production only) |
-| **Branches** | Multiplayer was built on `multiplayer` and fast-forward merged into `main` on 14 Oct 2026. Start new work on a branch |
+| **Branches** | Work happens on `multiplayer` and is fast-forward merged into `main` to ship (14 Oct 2026 for v2.0, 15 Oct 2026 for v2.1). Start new work on a branch |
 | **Models used** | Day 1 multiplayer (frontend + backend): Grok. Day 2 (design): Claude Sonnet |
-| **Bundle size** | About 27 KB of gzipped JavaScript and 4.7 KB of CSS with multiplayer (target is under 150 KB). vs-Bot alone was 12.7 KB |
+| **Bundle size** | About 21 KB of gzipped JavaScript, 5.7 KB of CSS and 2.8 KB of HTML in v2.1 (target is under 150 KB). vs-Bot alone was 12.7 KB |
 
 Note: `table-tennis.vercel.app` is owned by another Vercel account, so the custom address uses the spelling `tabel-tennis`.
 
@@ -153,7 +153,8 @@ The project lives in the workspace root.
    │  ├─ ai.ts             # opponent controller
    │  ├─ controllers.ts    # paddle controllers: local input, AI, remote input
    │  ├─ score.ts          # win rule and server rotation
-   │  └─ input.ts          # keyboard, pointer drag, touch drag
+   │  ├─ input.ts          # keyboard, pointer drag, touch drag, power pull
+   │  └─ shot.ts           # shot power curve, aim and serve preview path
    ├─ render/
    │  ├─ projection.ts     # world → screen transform and back
    │  ├─ table.ts          # table, lines, net
@@ -162,6 +163,7 @@ The project lives in the workspace root.
    │  ├─ character.ts      # Bot's head and expressions
    │  ├─ bubble.ts         # speech bubble and "You" tooltip
    │  ├─ hud.ts            # scoreboard, +1 animation, caption
+   │  ├─ preview.ts        # dotted serve path and landing ring
    │  └─ sketch.ts         # wobbly stroke helpers
    └─ ui/
       ├─ styles.css        # font faces, type scale, overlays, buttons, info badge
@@ -252,17 +254,31 @@ Fixed step `dt = 1/120 s`, accumulated from `requestAnimationFrame`.
 Bot tracks the predicted ball position with:
 - a **reaction delay** after the player hits,
 - a **lateral speed cap**,
-- a **tracking error** that grows with the distance it has to travel (0.14 m extra per meter),
+- a **tracking error** that grows with the distance it has to travel (0.10 m extra per meter),
 - **aim spread** and a **corner bias** that decide how wide it hits,
 - a gentle rubber-band effect that keeps games close.
 
+Bot never misses on purpose (no random net or out faults). It only loses a point when it can't reach the ball in time.
+
 | Mode | Reaction | Tracking error (σ) | Speed cap | Return speed | Serve speed | Aim spread | Corner bias | Hit bonus |
 |---|---|---|---|---|---|---|---|---|
-| Easy | 260 ms | 0.09 m | 1.0 m/s | 3.6 m/s | 3.6 m/s | 0.35 | 15% | 0 |
-| Medium | 170 ms | 0.075 m | 1.4 m/s | 4.3 m/s | 4.1 m/s | 0.50 | 40% | 0.02 m |
-| Hard | 100 ms | 0.04 m | 1.9 m/s | 5.2 m/s | 4.7 m/s | 0.62 | 70% | 0.04 m |
+| Easy | 230 ms | 0.08 m | 1.4 m/s | 3.6 m/s | 3.6 m/s | 0.35 | 15% | 0 |
+| Medium | 160 ms | 0.07 m | 1.7 m/s | 4.3 m/s | 4.1 m/s | 0.50 | 40% | 0.02 m |
+| Hard | 100 ms | 0.065 m | 2.0 m/s | 5.2 m/s | 4.7 m/s | 0.62 | 70% | 0.03 m |
 
-All three modes are beatable. This was checked with headless simulations, and Bot does miss on Hard.
+All three modes are beatable. `tests/rally.test.ts` checks this with a seeded headless rally against a scripted player. Bot returns about 86% (Easy), 95% (Medium) and 98% (Hard) of balls, and the player still wins points in every mode.
+
+### 6.7 Shot power
+
+- **Charge:** hold the paddle and pull it back toward you (mouse or finger). Power is the distance dragged down from the highest point of the current hold, divided by 20% of the screen height (96 to 200 px). On a keyboard, holding ↓ or S fills the bar in 0.7 s, and ↑ or W empties it.
+- **Keep or reset:** power stays when you let go. It resets after your own hit or serve, and at every point.
+- **Effect** (`src/game/shot.ts`):
+  - 0% lands just past the net.
+  - Depth and speed grow with power.
+  - 60 to 80% is the **sweet spot**: least spread and a small speed bonus.
+  - From 85%, the chance of the ball going long rises to certain at 100%.
+- **Serve preview:** while you serve, a dotted path and a landing ring show where the serve will land at the current power. The ring turns red when the shot may go out. The serve has no hidden random aim, so the preview is honest. Only the depth noise and the out-risk roll apply at contact.
+- **Online:** the guest sends its power as `p` (0 to 1) in every `input` message, and the host applies it to the guest's shots. The relay passes it through unchanged.
 
 ---
 
@@ -274,7 +290,8 @@ All three modes are beatable. This was checked with headless simulations, and Bo
 |---|---|
 | ← → ↑ ↓ (or A D W S) | Move the paddle left, right, toward the net and back |
 | Space | Serve, or play again after the game ends |
-| Mouse drag on the paddle | Move the paddle freely (cursor shows `grab` / `grabbing` and the red **You** label) |
+| Mouse drag on the paddle | Move the paddle freely (cursor shows `grab` / `grabbing` and the red **You** label). Pulling back charges power |
+| Hold ↓ (or S) | Charge power (full in 0.7 s). ↑ (or W) empties it |
 | M | Mute or unmute |
 | Esc | Does nothing. The mode can't be changed mid-match. |
 
@@ -282,14 +299,15 @@ All three modes are beatable. This was checked with headless simulations, and Bo
 
 | Input | Action |
 |---|---|
-| Touch and drag on the paddle | Moves the paddle directly |
+| Touch and drag on the paddle | Moves the paddle directly. Pulling back charges power |
 | Touch and drag anywhere else | Moves the paddle relative to the finger (depth uses 0.6× gain) |
 | Tap | Serve, or play again |
 
 Implementation notes:
 - Pointer Events with `touch-action: none`, tracking a single active `pointerId`.
 - The drag is released on `pointercancel`, on `lostpointercapture`, and on a mouse move with no buttons pressed, so a grab never gets stuck.
-- The hint text changes with the input type: keyboard shows `Arrow keys to move · Space to serve`, and touch shows `Drag to move · Tap to serve`.
+- The hint text changes with the input type. Keyboard shows `Hold Down for power · Space to serve` (serve) and `Arrow keys to move · Hold Down for power` (rally). Touch shows `Pull back for power · Tap to serve` and `Drag to move · Pull back for power`.
+- Taps never select text: the page sets `user-select: none` (inputs excepted), the canvas cancels `touchstart` and `dblclick`, and `selectstart` is blocked outside inputs.
 - Audio unlocks on the first gesture (needed on iOS).
 
 ---
@@ -369,7 +387,8 @@ Redesigned to match the reference: a translucent light-blue band with a thick bl
 ## 9. HUD, Overlays, Copy and Footer
 
 ### 9.1 Scoreboard
-- `[You] · [Bot]`, big and bold, placed slightly higher than in the reference.
+- `[You] · [Bot]`, big and bold: numerals are 124 px (portrait) and 112 px (landscape) on the design frame.
+- Portrait puts each name under its numeral with a clear 16 px+ gap. Landscape has no height to spare above Bot's head, so names sit outside the numerals on the same line: `You 0 · 0 Bot`.
 - The numbers are positioned from their measured widths so they stay centered around the dot.
 
 ### 9.2 Caption and point messages
@@ -388,7 +407,7 @@ Redesigned to match the reference: a translucent light-blue band with a thick bl
 
 ### 9.5 Game-over modal
 - Title (`You win!` or `Bot wins`) and the final score.
-- Two **equal-width** buttons: **Play again** (same mode) and **Change difficulty** (back to the start screen).
+- Two full-width buttons, stacked: **Play again** (same mode, primary) above **Change difficulty** (back to the start screen).
 - Tapping outside the buttons, or pressing Space, also plays again.
 
 ### 9.6 Footer pill
@@ -486,6 +505,14 @@ Built on branch `multiplayer` and merged into `main`. Full spec, task list and k
 - The paddle code was refactored into controllers. A seeded vs-Bot simulation (golden test) proves vs-Bot plays exactly as before.
 - Design pass: all MP screens use the existing font, type scale, palette and components. Keyboard focus ring, screen-reader announcements and reduced motion were checked.
 
+### v2.1 — Power, Bot and polish (15 Oct 2026)
+Built on `multiplayer` and fast-forward merged into `main`. Details in §30.4.
+- **Shot power:** pull the paddle back (or hold Down) to charge. A gradient power bar replaces the profile bar in every match, and from 85% the ball may go out.
+- **Serve preview:** a dotted path and landing ring show where your serve will land.
+- **Bot keeps rallies going:** no deliberate misses, retuned tracking, and a new rally simulation test.
+- **UI:** bigger scoreboard; 48 px buttons with 18 px text and a press-and-spring tap effect; stacked two-button modals; Host lobby laid out like Join; Back home replaces Play vs Bot; Leave is a secondary button; 8 px spacing grid.
+- **Fixes:** text selection on phone taps, the frozen loader ball with Reduce Motion, the palm on the red paddle, and "null left the game".
+
 ---
 
 ## 13. Acceptance Criteria
@@ -523,7 +550,7 @@ export const CONFIG = {
   playerShotSpeed: 5.0,
 
   aiPaddleHitR: 0.09,      // plus the difficulty's hitBonus
-  aiDistanceError: 0.14,   // extra tracking error per meter traveled
+  aiDistanceError: 0.1,    // extra tracking error per meter traveled
 
   bubbleHoldMs: 900,
   pointFreezeMs: 1600,
@@ -708,7 +735,7 @@ Single-player shows a static mode chip and a mute button. In multiplayer:
 |---|---|---|
 | S01 | **Start screen** | Extended as in §20.2 (this is the existing `MENU` state) |
 | S02 | **Creating room** | A spinner. After 5 s: "Taking longer than usual…" with Retry |
-| S03 | **Host lobby** | Large spaced code (e.g. `K T Q R`), **Share invite** (primary), Copy link, Copy code, expiry countdown, **+2 min** (once), Cancel |
+| S03 | **Host lobby** | Laid out like Join: heading "Host a game", the expiry countdown as the subheading, the four code tiles, then **Share invite** (primary) and Cancel |
 | S04 | **Host lobby, friend joined** | "Ravi joined", **Start game** (primary), Leave room |
 | S05 | **Join with code** | Four boxes, auto-uppercase, auto-advance, paste fills all four, submits on the 4th letter |
 | S06 | **Invite screen** | "Girish invited you to play", name field (prefilled), **Join game**. Shown only if no name is saved |
@@ -718,12 +745,12 @@ Single-player shows a static mode chip and a mute button. In multiplayer:
 | S10 | **Reconnect overlay** | "Ravi lost connection. Waiting 12 s…", and for the dropped player "Reconnecting…" |
 | S11 | **Result modal** | Same modal as game-over: "You win!" or "Ravi wins", final score, **Rematch** and **Leave** |
 | S12 | **Rematch pending** | "Waiting for Ravi…" or "Girish wants a rematch" with Accept and Leave |
-| S13 | **Leave dialog** | "Leave match? Your friend will win." Stay / Leave |
+| S13 | **Leave dialog** | "Leave match? Your friend will win." **Keep playing** (primary, top) / Leave (white secondary, below) |
 | S14 | **Message screens** | See §20.5 |
 
 ### 20.5 Message screens (copy)
 
-Each has one primary button, plus a quiet "Play vs Bot" link.
+Each has one primary button, plus a white **Back home** button below it (left out when the primary is already Back home). Back home closes the session and returns to the home page.
 
 | Situation | Title | Body | Primary |
 |---|---|---|---|
@@ -732,11 +759,11 @@ Each has one primary button, plus a quiet "Play vs Bot" link.
 | Match already started | "That match already started" | "Ask your friend to host a new game." | Host your own |
 | Room ended | "This game has ended" | "Ask your friend for a new link." | Host your own |
 | Host's own room expired | "Room expired" | "Nobody joined in time." | Create new room |
-| Friend left | "{Name} left the game" | "You win by forfeit." (mid-match only) | Back to menu |
-| Host ended the game | "{Name} ended the game" | "Ask for a new link to play again." | Back to menu |
+| Friend left | "{Name} left the game" | "You win by forfeit." (mid-match only) | Back home |
+| Host ended the game | "{Name} ended the game" | "Ask for a new link to play again." | Back home |
 | Server unreachable | "Can't reach the game server" | "Check your connection, or play Bot." | Retry |
 | Update needed | "A new version is available" | "Refresh to keep playing." | Refresh |
-| Free limit reached | "Online play is resting" | "It will be back soon. You can still play Bot." | Play vs Bot |
+| Free limit reached | "Online play is resting" | "It will be back soon. You can still play Bot." | Back home |
 | Duplicate tab | "Game is open in another tab" | "Use the other tab, or play here instead." | Play here |
 
 ### 20.6 Flows
@@ -893,7 +920,7 @@ Errors return `{error: "ROOM_NOT_FOUND" | "ROOM_FULL" | "ROOM_EXPIRED" | "VERSIO
 | `countdown {n}` | host → guest | 3, 2, 1, 0 |
 | `pause {reason}` / `resume {in}` | host → guest | `host_hidden`, `reconnecting`, `guest_away` |
 | `away` / `back` | guest → host | Guest hid or showed the game |
-| `input {seq, ts, x, z}` | guest → host | Paddle target in host coordinates (tilt is derived locally) |
+| `input {seq, ts, x, z, p}` | guest → host | Paddle target in host coordinates (tilt is derived locally), plus shot power `p` (0 to 1, clamped by the host) |
 | `state {tick, phase, ball, hp, gp, score, server, serveMs}` | host → guest | Snapshot (about 30 per second) |
 | `state_sync {...}` | host → guest | Full state after a reconnect |
 | `event {kind, who, reason?}` | host → guest | `hit`, `bounce`, `net`, `point` (with `winner` and `reason`: missed, net, out, double, fault) |
@@ -1132,6 +1159,7 @@ IDs are used by the tests and the sweep in §24.5.
 - Set `VITE_RELAY_URL` in Vercel for **Preview** and **Production** (⚠️ Y-3). Without it the MP buttons stay hidden (E-50).
 - Merge to `main` only when the QA gate in §24.5 is green.
 - *Update 14 Oct 2026:* `multiplayer` was merged into `main` at Girish's request before S-1 and S-2, so the device test happens on production. `VITE_RELAY_URL` is currently set for **Production** only. For new work, branch from `main` again and add the preview variable if you want MP on preview URLs. Preview URLs are also not in the Worker's `ALLOWED_ORIGINS`, so add them there (in `server/wrangler.toml`, then redeploy) to test MP on a preview.
+- *Update 15 Oct 2026:* v2.1 was shipped the same way: committed on `multiplayer`, then `main` was fast-forwarded to it and pushed. The relay did not change, so no `wrangler deploy` was needed.
 
 ### 24.2 Prompt template for every Cursor chat
 
@@ -1399,7 +1427,7 @@ These were found during the Day 2 design pass, which wasn't allowed to change lo
 - **Avatars:** six looks (Wow, Cap, Cool, Fierce, Dizzy, Wink) in `src/ui/avatars.ts`, drawn as the Bot blob head with the nose bump. The pick is saved in `localStorage` (`tt-avatar`). During a match, a small profile bar near the bottom shows your avatar and name and your opponent's (Bot's face vs Bot). Online, avatars are exchanged inside the relay's existing `emote` message (`id: -1`, `avatar: "<id>"`), so no relay change was needed. An unknown peer avatar falls back to Bot's face.
 - **Colour roles:** primary = court blue `#0A8CFF` (main buttons, selected avatar, focus lift; hover `#0070D6`); secondary = white with an ink outline (all other buttons and chips); ink for text and outlines; danger red `#F23B3B` only for warnings, errors and the "you" accents. Muted text is `#666`.
 - **Type scale:** desktop 56 / 32 / 24 / 20 / 16 / 14, phones (width up to 600 px, or short landscape) 40 / 28 / 20 / 18 / 16 / 14 as `--t-title`, `--t-heading`, `--t-subtitle`, `--t-body`, `--t-label`, `--t-caption`. Canvas text uses `fontPx()` with the same limits (never under 14 px).
-- **Spacing:** every padding, margin, gap and size is a multiple of 4.
+- **Spacing:** every padding, margin, gap and size is a multiple of 4 (tightened to an 8 px grid in §30.4).
 - **Top bar:** connection (and difficulty label) on the left, volume and close on the right. Toasts appear at the top. No focus outline ring anywhere. The "+2 min" room button is removed.
 - **Opponent paddle:** drawn after the table, and the guest's view uses `aiPaddleHover`, so the far paddle is no longer cut off by the table edge.
 ### 30.1 Follow-up (14 Oct 2026)
@@ -1422,3 +1450,30 @@ These were found during the Day 2 design pass, which wasn't allowed to change lo
 - **Footer** is one line: "No one to play with? Text Girish Shedge" (dotted underline), opening WhatsApp to +91 9373869224 with "Let's play tennis together" filled in.
 - **Friend avatars everywhere.** Avatars are exchanged when a friend joins (new `src/net/peer.ts`), so the lobby ("You're in!" with both faces, green tick, room code), the host's "joined" badge and the result and rematch cards show them. In the match the far-end head is the friend's avatar with the same four moods as Bot (watch, shock, happy, dizzy); every look has all four. Against a friend the bottom bar is one line, "You are playing with <Name>".
 - **Colour.** Green (`--success`) for success: joined, you're in, you win, link or code copied, strong connection. Red (`--danger`) for alerts and for the destructive Leave button, weak connection, warnings. Quiet text buttons became normal white buttons. Every tappable control has the hard ink shadow; toasts, the connection light and the mode label do not.
+
+### 30.4 Power, Bot and polish (15 Oct 2026)
+
+- **Shot power** (§6.6, §6.7). Pull back to charge, keyboard hold as a fallback. Default power drops the ball just past the net, the 60 to 80% sweet spot is the most accurate, and from 85% the ball may go out.
+  - **Power bar:** replaces the profile bar at the bottom of every match (vs Bot and vs friend). It has a gradient fill (blue, then green, then red), a dashed sweet-spot box, a hatched risk zone, and a state word: Soft, Building, Sweet spot or Too hard!
+  - **Short landscape:** the bar moves to the bottom-left corner.
+  - **Emotes:** they sit above the bar.
+- **Serve preview:** a dotted path and a landing ring while you serve. The ring turns red when the serve may go out.
+- **Bot keeps the rally going.**
+  - The deliberate faults are gone: Bot used to send about 11% of Easy returns, 6.5% of Medium and 3% of Hard into the net or out.
+  - Reaction, tracking and speed are retuned as in §6.6.
+  - New tests: `tests/rally-sim.ts` and `tests/rally.test.ts`.
+  - The `bot-golden` hash was re-captured on purpose.
+- **Text selection on phones** is blocked during play (§7.2).
+- **Buttons:**
+  - Every `.btn` and `.chip` is 48 px tall with 18 px text (`--btn-h`, `--btn-font`).
+  - **Press effect:** the button sinks into its shadow on press, then springs back with an overshoot (`--press-in`, `--press-out`). There is no hover lift.
+  - `src/ui/press.ts` holds the pressed state for at least 110 ms, so quick taps still show it.
+  - Status chips (mode label, connection) don't move.
+- **Two-button modals are always stacked**, primary on top, on every screen size.
+  - **Leave match** (Bot and friend): **Keep playing** (blue) above **Leave** (white with an ink outline). There is no red button any more.
+- **Host lobby** matches Join: heading, then the expiry countdown, the code tiles, **Share invite** and Cancel. Copy link and Copy code are gone. The link field still appears when the browser can't share or copy.
+- **Back home** replaces every "Play vs Bot" action on message screens (§20.5). It closes the session and returns to the home page.
+- **Scoreboard:** bigger numerals and a clear gap to the names (§9.1).
+- **Removed:** the palm on the red paddle and the profile bar in matches.
+- **Loader ball:** the bouncing ball in the Host and Reconnecting screens was frozen on phones with Reduce Motion turned on. It now always plays a gentle hop.
+- **Spacing** is on an 8 px grid. 4 px is used only as a half step inside small parts (badges, gaps between label lines).

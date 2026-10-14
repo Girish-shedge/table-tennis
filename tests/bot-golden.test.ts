@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { goldenDigest } from "./bot-sim";
 
-/** Captured from the pre-controller Game. A mismatch means vs-Bot changed. */
-const GOLDEN = "bfde56535c7281e3b459acc7c6e4107243aecf7e9d11445ab585eb5755b72a5f";
+/**
+ * Seeded vs-Bot trace. Re-captured on 15 Oct 2026 when shot power replaced the random shot depth
+ * and Bot stopped missing on purpose (project.md §30.4). A mismatch means vs-Bot changed again.
+ */
+const GOLDEN = "6f2719ee07eb27fc992555d7a778fb46738b337689312d3391b18c1174336be9";
 
 describe("vs-Bot golden", () => {
-  it("matches the seeded trace from before the paddle-controller refactor", () => {
+  it("matches the seeded trace", () => {
     expect(goldenDigest()).toBe(GOLDEN);
   });
 });

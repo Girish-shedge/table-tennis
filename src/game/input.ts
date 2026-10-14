@@ -21,6 +21,16 @@ export class Input {
   grabbing = false;
   /** Desired paddle position while dragging, else null. */
   dragTarget: { x: number; z: number } | null = null;
+  /**
+   * Shot power 0..1: how far the paddle has been pulled back (toward you) since the last reset.
+   * Pointer: screen distance dragged down from the highest point of the hold, so pulling past the
+   * back edge of the paddle's range still charges. Keys: how long ↓ / S has been held. Moving
+   * forward lowers it again; it holds when you let go, and resets after each hit or serve.
+   */
+  pull = 0;
+  private pullAnchorY = 0;
+  private lastY = 0;
+  private static readonly KEY_PULL_SECONDS = 0.7;
 
   private activeId: number | null = null;
   private start = { x: 0, y: 0, t: 0, moved: false };
@@ -49,12 +59,40 @@ export class Input {
       if (e.pointerId === this.activeId) this.release();
     });
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+    // Taps and long presses during play must never start a text selection, a magnifier or a
+    // double-tap zoom. Pointer events still arrive; only the browser's default touch handling stops.
+    canvas.addEventListener("touchstart", (e) => e.preventDefault(), { passive: false });
+    canvas.addEventListener("dblclick", (e) => e.preventDefault());
+    document.addEventListener("selectstart", (e) => {
+      const t = e.target as Node | null;
+      const el = t instanceof Element ? t : t?.parentElement;
+      if (!el?.closest("input, textarea")) e.preventDefault();
+    });
   }
 
   private release() {
     this.activeId = null;
     this.grabbing = false;
     this.dragTarget = null;
+  }
+
+  /** Screen pixels of pull for full power: about a thumb's comfortable swipe. */
+  private get pullPx() {
+    return Math.min(200, Math.max(96, window.innerHeight * 0.2));
+  }
+
+  /** Back to zero power, measured from where the pointer is now. */
+  resetPull() {
+    this.pull = 0;
+    this.pullAnchorY = this.lastY;
+  }
+
+  /** Per-frame keyboard part of the pull. */
+  tickPull(dt: number) {
+    if (this.activeId !== null) return;
+    const z = this.axis().z;
+    if (z < 0) this.pull = Math.min(1, this.pull + dt / Input.KEY_PULL_SECONDS);
+    else if (z > 0) this.pull = 0;
   }
 
   /** -1..1 per axis from the keyboard. */
@@ -100,6 +138,9 @@ export class Input {
       this.offset = { x: target.x - world.x, z: target.z - world.z };
       if (this.kind === "touch" && onPaddle) this.offset.z += 0.18; // lift above the finger
       this.dragTarget = { ...target };
+      // Keep any power already charged: the anchor sits that far above the finger.
+      this.lastY = e.clientY;
+      this.pullAnchorY = e.clientY - this.pull * this.pullPx;
     }
   };
 
@@ -119,6 +160,9 @@ export class Input {
     const dy = e.clientY - this.start.y;
     if (dx * dx + dy * dy > 64) this.start.moved = true;
     if (this.grabbing) {
+      this.lastY = e.clientY;
+      this.pullAnchorY = Math.min(this.pullAnchorY, e.clientY);
+      this.pull = Math.min(1, Math.max(0, (e.clientY - this.pullAnchorY) / this.pullPx));
       const world = this.cb.toWorld(e.clientX, e.clientY);
       this.dragTarget = this.relative
         ? {

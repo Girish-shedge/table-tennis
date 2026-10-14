@@ -38,8 +38,8 @@
 .mp-divider {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin: 16px 0 12px;
+  gap: 16px;
+  margin: 24px 0 16px;
   font: 400 var(--t-caption)/1 var(--font);
   color: var(--mp-text);
 }
@@ -69,7 +69,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  max-width: 220px;
+  max-width: 224px;
   font: 700 var(--t-body)/1 var(--font);
   color: var(--ink);
   cursor: pointer;
@@ -131,7 +131,7 @@
 }
 .mp-card .sub {
   color: var(--mp-text);
-  margin: 0 0 12px;
+  margin: 0 0 16px;
 }
 .mp-card .hint,
 .mp-eyebrow {
@@ -139,7 +139,7 @@
   color: var(--mp-text);
 }
 .mp-eyebrow {
-  margin: 4px 0 8px;
+  margin: 0 0 8px;
   font-size: var(--t-label);
   font-weight: 700;
 }
@@ -147,7 +147,7 @@
   animation: none;
 }
 .mp-warn {
-  margin: 12px 0 0;
+  margin: 16px 0 0;
   min-height: 0;
   font: 700 var(--t-body)/1.2 var(--font);
   color: var(--danger);
@@ -157,35 +157,18 @@
 }
 
 /* ---- Buttons ------------------------------------------------------------- */
+/* Buttons always stack, primary on top. Size and text come from .btn (--btn-h, --btn-font). */
 .mp-actions {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   margin-top: 16px;
-}
-.mp-actions .btn {
-  width: 100%;
-  min-height: 48px;
-}
-.mp-actions.mp-pair {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-}
-.btn.hero {
-  font-size: var(--t-subtitle);
-  padding: 12px 16px;
-  min-height: 56px;
 }
 .btn:disabled {
   opacity: 0.45;
   cursor: default;
   transform: none;
   box-shadow: 0 4px 0 var(--ink);
-}
-/* Every tappable thing keeps the hard ink shadow, so "Cancel" and "Leave" read as buttons too. */
-.btn-quiet {
-  font-size: var(--t-label);
-  min-height: 44px;
 }
 
 /* ---- Code card (host lobby) and four-box code input ---------------------- */
@@ -199,7 +182,7 @@
 .code-tile,
 .code-input {
   width: 64px;
-  height: 76px;
+  height: 80px;
   display: grid;
   place-items: center;
   border: 2.5px solid var(--ink);
@@ -222,7 +205,7 @@
   rotate: 1.5deg;
 }
 .code-card.small .code-tile {
-  width: 44px;
+  width: 48px;
   height: 56px;
   font-size: var(--t-heading);
   border-radius: 12px;
@@ -259,16 +242,16 @@
 .mp-label {
   display: block;
   text-align: left;
-  margin: 16px 4px 8px;
+  margin: 16px 0 8px;
   font: 700 var(--t-label)/1 var(--font);
   color: var(--mp-text);
 }
 .mp-field {
   width: 100%;
-  min-height: 52px;
+  height: var(--btn-h);
   border: 2.5px solid var(--ink);
   border-radius: 999px;
-  padding: 8px 20px;
+  padding: 0 24px;
   background: #fff;
   color: var(--ink);
   text-align: center;
@@ -287,7 +270,7 @@
 
 /* ---- Status: joined badge, waiting dots, bouncing ball ------------------- */
 .info-badge.mp-joined {
-  margin: 4px 0 8px;
+  margin: 8px 0;
   font-size: var(--t-label);
   font-weight: 700;
   background: var(--success-tint);
@@ -343,7 +326,7 @@
   align-items: flex-start;
   justify-content: center;
   gap: 8px;
-  margin: 4px 0 12px;
+  margin: 8px 0 16px;
 }
 .mp-duo .who {
   display: flex;
@@ -389,9 +372,9 @@
 .duo-face .tick {
   position: absolute;
   right: -8px;
-  bottom: -4px;
-  width: 28px;
-  height: 28px;
+  bottom: -8px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
   border: 2.5px solid var(--ink);
@@ -404,7 +387,7 @@
 }
 .duo-link {
   align-self: flex-start;
-  margin-top: 36px;
+  margin-top: 40px;
   width: 40px;
   border-top: 3px dotted var(--ink);
 }
@@ -412,7 +395,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin: 0 0 4px;
+  margin: 0 0 8px;
   padding: 4px 16px;
   border: 2px solid var(--success);
   border-radius: 999px;
@@ -425,7 +408,7 @@
   color: var(--success);
 }
 .mp-wait {
-  margin: 8px 0 4px;
+  margin: 8px 0;
   color: var(--mp-text);
   font: 400 var(--t-body)/1.4 var(--font);
 }
@@ -438,7 +421,7 @@
   color: var(--mp-text);
 }
 .mp-room b {
-  padding: 4px 12px;
+  padding: 4px 16px;
   border: 2px solid var(--ink);
   border-radius: 999px;
   background: #fff;
@@ -468,12 +451,12 @@
 .mp-ball {
   position: relative;
   height: 64px;
-  margin: 4px auto 8px;
+  margin: 0 auto 8px;
   width: 64px;
 }
 .mp-ball span {
   position: absolute;
-  left: 20px;
+  left: calc(50% - 12px);
   bottom: 8px;
   width: 24px;
   height: 24px;
@@ -498,7 +481,7 @@
 }
 .mp-glyph {
   display: block;
-  margin: -4px auto 8px;
+  margin: 0 auto 8px;
   color: var(--ink);
 }
 
@@ -508,7 +491,7 @@
   justify-content: center;
   align-items: flex-start;
   gap: 16px;
-  margin: 8px 0 4px;
+  margin: 8px 0;
   font: 700 var(--t-heading)/1 var(--font);
 }
 .mp-score .side {
@@ -551,8 +534,8 @@
 /* ---- Countdown disc with ring ------------------------------------------- */
 .mp-count {
   position: relative;
-  width: 140px;
-  height: 140px;
+  width: 144px;
+  height: 144px;
   display: grid;
   place-items: center;
   border: 3px solid var(--ink);
@@ -589,12 +572,11 @@
 /* ---- Connection chip (top left) and match controls ----------------------- */
 .chip-conn {
   gap: 0;
-  padding: 0 12px;
+  padding: 0 16px;
   /* A status light that happens to open a number: it only needs a light touch, so no hard shadow. */
   box-shadow: none;
 }
-.chip-conn:hover,
-.chip-conn:active {
+.chip.chip-conn:is(:active, .is-pressed):not(:disabled) {
   transform: none;
   box-shadow: none;
 }
@@ -639,7 +621,8 @@
   position: fixed;
   left: 50%;
   translate: -50% 0;
-  bottom: calc(64px + env(safe-area-inset-bottom));
+  /* Sits just above the power bar (16 px gap + 48 px bar + 16 px gap). */
+  bottom: calc(80px + env(safe-area-inset-bottom));
   z-index: 5;
   display: flex;
   flex-wrap: wrap;
@@ -652,12 +635,8 @@
   display: none;
 }
 #emotes .chip {
-  min-height: 44px;
-  min-width: 44px;
-  padding: 0 12px;
-}
-#emotes .chip:active {
-  animation: emote-tap 0.25s ease;
+  min-width: var(--btn-h);
+  padding: 0 16px;
 }
 
 /* ---- Toast --------------------------------------------------------------- */
@@ -665,10 +644,13 @@
   position: fixed;
   left: 50%;
   translate: -50% 0;
-  top: calc(68px + env(safe-area-inset-top));
+  top: calc(80px + env(safe-area-inset-top));
   z-index: 12;
   max-width: min(92vw, 360px);
-  padding: 12px 20px;
+  min-height: var(--btn-h);
+  display: flex;
+  align-items: center;
+  padding: 8px 24px;
   border: 2.5px solid var(--ink);
   border-radius: 999px;
   background: #fff;
@@ -713,12 +695,7 @@
 /* Wide screens: the toast sits in the top bar, between the two control groups. */
 @media (min-width: 640px) {
   .toast {
-    top: calc(12px + env(safe-area-inset-top));
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-    padding-top: 0;
-    padding-bottom: 0;
+    top: calc(16px + env(safe-area-inset-top));
   }
   .toast[hidden] {
     display: none;
@@ -730,8 +707,8 @@
   .code-tile,
   .code-input {
     width: 56px;
-    height: 68px;
-    border-radius: 14px;
+    height: 72px;
+    border-radius: 16px;
   }
   #emotes .chip {
     padding: 0 8px;
@@ -750,8 +727,8 @@
   #emotes {
     left: auto;
     translate: none;
-    right: calc(12px + env(safe-area-inset-right));
-    top: 68px;
+    right: calc(16px + env(safe-area-inset-right));
+    top: 80px;
     bottom: auto;
     flex-direction: column;
     flex-wrap: nowrap;
@@ -777,21 +754,12 @@
     font-size: var(--t-heading);
   }
   .mp-actions {
-    margin-top: 12px;
-  }
-  .mp-actions .btn {
-    min-height: 44px;
-    padding-top: 8px;
-    padding-bottom: 8px;
-  }
-  .mp-actions.mp-landscape-pair {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    margin-top: 16px;
   }
   .code-tile,
   .code-input {
     height: 64px;
-    width: 52px;
+    width: 56px;
     font-size: var(--t-heading);
   }
   .mp-score {
@@ -811,12 +779,6 @@
   }
   .mp-split > :not(.mp-actions) {
     grid-column: 1;
-  }
-  .btn.hero {
-    min-height: 48px;
-    padding-top: 8px;
-    padding-bottom: 8px;
-    font-size: var(--t-body);
   }
   .mp-ball {
     height: 48px;
@@ -901,15 +863,13 @@
     scale: 1.06;
   }
 }
-@keyframes emote-tap {
-  0% {
-    scale: 1;
-  }
-  40% {
-    scale: 0.9;
-  }
+@keyframes ball-bounce-soft {
+  0%,
   100% {
-    scale: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -16px, 0);
   }
 }
 @keyframes toast-in {
@@ -935,14 +895,16 @@
   .info-badge.mp-joined,
   .mp-count.tick circle,
   .mp-count.tick h1,
-  .mp-dots i,
-  .mp-ball span,
   .mp-ball::after,
   .mp-expiry.urgent,
-  #emotes .chip:active,
   .toast,
   .toast.out {
     animation: none;
+  }
+  /* The ball and the dots say "still working", so they keep moving (many phones turn on reduced
+     motion with battery saver, and a frozen loader looks like a crash). A shorter, slower hop. */
+  .mp-ball span {
+    animation: ball-bounce-soft 1.2s ease-in-out infinite;
   }
   .mp-count.tick circle {
     stroke-dashoffset: 0;

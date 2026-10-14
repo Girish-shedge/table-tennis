@@ -1,5 +1,5 @@
 import { CONFIG, NET, type Difficulty } from "../config";
-import { clamp, gaussian } from "../render/sketch";
+import { clamp } from "../render/sketch";
 import { AI } from "./ai";
 import { AIController, LocalInput, RemoteInput } from "./controllers";
 import {
@@ -7,13 +7,13 @@ import {
   makePaddle,
   other,
   paddleCrossing,
-  solveShot,
   stepBall,
   type Ball,
   type Paddle,
   type Side,
 } from "./physics";
 import { serverFor, winner, type Score } from "./score";
+import { aimWobble, launch, nominalAim, previewPath, rolledAim, serveTx } from "./shot";
 
 export type Phase = "MENU" | "SERVE" | "RALLY" | "POINT" | "GAME_OVER";
 
@@ -68,6 +68,9 @@ export class Game {
   /** Desired paddle target from input for this frame (drag) or null. */
   dragTarget: { x: number; z: number } | null = null;
   keyAxis = { x: 0, z: 0 };
+  /** Shot power 0..1 for the near player (from input) and the far human (from the network). */
+  playerPower = 0;
+  farPower = 0;
 
   on(l: Listener) {
     this.listeners.push(l);
@@ -157,10 +160,7 @@ export class Game {
     const b = this.ball;
     if (by === "player") {
       const p = this.player;
-      const tx = clamp(p.pos.x * 0.4 + (Math.random() - 0.5) * 0.5 + p.vel.x * 0.15, -0.6, 0.6);
-      const tz = 1.85 + Math.random() * 0.5;
-      const speed = CONFIG.playerShotSpeed * 0.9 + clamp(p.vel.z, 0, 2) * 0.5;
-      b.vel = solveShot(b.pos, tx, tz, speed);
+      b.vel = launch(b.pos, serveTx(p.pos.x, p.vel.x), rolledAim(this.playerPower, true));
     } else {
       b.vel = this.ai.serve(b.pos);
     }
@@ -309,16 +309,21 @@ export class Game {
     const p = this.player;
     // Aim: mostly back toward the middle, angled by where on the face the ball
     // struck and by how fast the paddle was swinging sideways. Extreme swipes
-    // or edge hits can push the shot wide.
+    // or edge hits can push the shot wide. Depth and pace come from the power.
     const offset = b.pos.x - p.pos.x;
-    const wobble = gaussian() * 0.05;
-    const tx = clamp(b.pos.x * 0.4 + offset * 2.6 + p.vel.x * 0.26 + wobble, -0.9, 0.9);
-    const forward = clamp(p.vel.z, 0, 2.5);
-    const tz = clamp(1.8 + Math.random() * 0.5 + forward * 0.15, 1.6, 2.55);
-    const speed = CONFIG.playerShotSpeed + forward * 0.6 + Math.abs(p.vel.x) * 0.1;
-    b.vel = solveShot(b.pos, tx, tz, speed);
+    const tx = clamp(b.pos.x * 0.4 + offset * 2.6 + p.vel.x * 0.26 + aimWobble(this.playerPower), -0.9, 0.9);
+    const aim = rolledAim(this.playerPower);
+    b.vel = launch(b.pos, tx, aim);
     b.pos.z = p.pos.z + 0.01;
-    this.afterHit("player", speed);
+    this.afterHit("player", aim.speed);
+  }
+
+  /** Dotted serve preview: the nominal flight of your serve right now, or null when it isn't your serve. */
+  servePreview(): ReturnType<typeof previewPath> | null {
+    if (this.phase !== "SERVE" || this.server !== "player" || !this.ball.visible) return null;
+    const p = this.player;
+    const vel = launch(this.ball.pos, serveTx(p.pos.x, p.vel.x), nominalAim(this.playerPower, true));
+    return previewPath(this.ball.pos, vel);
   }
 
   private aiHit() {
@@ -468,27 +473,20 @@ export class Game {
     const mz = CONFIG.tableL - b.pos.z;
     const px = -p.x;
     const pvx = -this.aiPaddle.vel.x;
-    const pvz = -this.aiPaddle.vel.z;
     const offset = mx - px;
-    const wobble = gaussian() * 0.05;
-    const tx = clamp(mx * 0.4 + offset * 2.6 + pvx * 0.26 + wobble, -0.9, 0.9);
-    const forward = clamp(pvz, 0, 2.5);
-    const tz = clamp(1.8 + Math.random() * 0.5 + forward * 0.15, 1.6, 2.55);
-    const speed = CONFIG.playerShotSpeed + forward * 0.6 + Math.abs(pvx) * 0.1;
-    const vel = solveShot({ x: mx, y: b.pos.y, z: mz }, tx, tz, speed);
+    const tx = clamp(mx * 0.4 + offset * 2.6 + pvx * 0.26 + aimWobble(this.farPower), -0.9, 0.9);
+    const aim = rolledAim(this.farPower);
+    const vel = launch({ x: mx, y: b.pos.y, z: mz }, tx, aim);
     b.vel = { x: -vel.x, y: vel.y, z: -vel.z };
     b.pos.z = this.aiPaddle.pos.z - 0.01;
-    this.afterHit("ai", speed);
+    this.afterHit("ai", aim.speed);
   }
 
   private serveHumanFar() {
     const b = this.ball;
     const p = this.aiPaddle;
-    const mx = -p.pos.x;
-    const tx = clamp(mx * 0.4 + (Math.random() - 0.5) * 0.5 + -p.vel.x * 0.15, -0.6, 0.6);
-    const tz = 1.85 + Math.random() * 0.5;
-    const speed = CONFIG.playerShotSpeed * 0.9 + clamp(-p.vel.z, 0, 2) * 0.5;
-    const vel = solveShot({ x: -b.pos.x, y: b.pos.y, z: CONFIG.tableL - b.pos.z }, tx, tz, speed);
+    const tx = serveTx(-p.pos.x, -p.vel.x);
+    const vel = launch({ x: -b.pos.x, y: b.pos.y, z: CONFIG.tableL - b.pos.z }, tx, rolledAim(this.farPower, true));
     b.vel = { x: -vel.x, y: vel.y, z: -vel.z };
     b.lastHitter = "ai";
     b.bouncedOn = null;
