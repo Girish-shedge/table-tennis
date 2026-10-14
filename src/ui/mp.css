@@ -31,7 +31,9 @@
 #mp-root :is(.btn, .mp-link, .mp-field, .code-input):focus-visible,
 #mp-name-dialog :is(.btn, .mp-field):focus-visible,
 .controls:has(#btn-conn:not([hidden])) .chip:focus-visible,
-#emotes .chip:focus-visible {
+#emotes .chip:focus-visible,
+.card .mode:focus-visible,
+.controls .chip:focus-visible {
   outline: 3px solid var(--table);
   outline-offset: 3px;
 }
@@ -69,7 +71,7 @@
   appearance: none;
   background: none;
   border: 0;
-  min-height: 44px;
+  min-height: 46px;
   padding: 0 6px;
   display: inline-flex;
   align-items: center;
