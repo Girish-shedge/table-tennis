@@ -15,7 +15,7 @@ import { Projection, computeLayout, type Layout } from "./render/projection";
 import { drawNet, drawTable } from "./render/table";
 import { net } from "./net/client";
 import { OnlineMatch } from "./net/hostSim";
-import { truncateName } from "./strings";
+import { COPY, truncateName } from "./strings";
 import { mountMultiplayer } from "./ui/screens";
 
 // ---- DOM ------------------------------------------------------------------
@@ -56,6 +56,8 @@ let onEscape = () => {};
 let online: OnlineMatch | null = null;
 let mpYou = "";
 let mpThem = "";
+let selfEmote = "";
+let selfEmoteAt = -1e9;
 
 const input = new Input(canvas, {
   toWorld: (sx, sy) => P.unprojectToPlane(sx, sy, CONFIG.paddleHover),
@@ -111,18 +113,22 @@ const AI_SCORE_LINES = ["Ha!", "Gotcha!"];
 const RETURN_LINES = ["Hey!", "Whoa!"];
 const pick = <T>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
 
+function themName() {
+  return mpThem ? truncateName(mpThem) : CONFIG.opponentName;
+}
+
 function reasonText(winner: "player" | "ai", reason: PointReason): string {
   switch (reason) {
     case "out":
-      return "Out!";
+      return COPY.out;
     case "net":
-      return "Net!";
+      return COPY.net;
     case "double":
-      return "Double bounce";
+      return COPY.double;
     case "fault":
-      return "Fault";
+      return COPY.fault;
     case "missed":
-      return winner === "player" ? `${CONFIG.opponentName} missed` : "Missed!";
+      return winner === "player" ? `${themName()} ${COPY.missedThem}` : COPY.missedYou;
   }
 }
 
@@ -136,7 +142,7 @@ game.on((e: GameEvent) => {
       if (e.by === "player") {
         if (!reducedMotion) shake = 1;
         character.setMood("shock", 380, game.now);
-        if (Math.random() < 0.3) bubble.show(pick(RETURN_LINES), game.now);
+        if (!game.externalSim && Math.random() < 0.3) bubble.show(pick(RETURN_LINES), game.now);
       }
       break;
     case "bounce":
@@ -153,11 +159,11 @@ game.on((e: GameEvent) => {
       if (e.winner === "player") {
         audio.pointWon();
         character.setMood("dizzy", 1300, game.now);
-        bubble.show(aiOwnFault ? "Oops!" : pick(PLAYER_SCORE_LINES), game.now);
+        if (!game.externalSim) bubble.show(aiOwnFault ? "Oops!" : pick(PLAYER_SCORE_LINES), game.now);
       } else {
         audio.pointLost();
         character.setMood("happy", 1300, game.now);
-        bubble.show(pick(AI_SCORE_LINES), game.now);
+        if (!game.externalSim) bubble.show(pick(AI_SCORE_LINES), game.now);
       }
       break;
     }
@@ -222,6 +228,19 @@ function setMuted(m: boolean) {
 }
 setMuted(audio.muted);
 
+for (const btn of Array.from(document.querySelectorAll<HTMLButtonElement>("#emotes button"))) {
+  const id = Number(btn.dataset.emote);
+  btn.textContent = COPY.emotes[id] ?? "";
+  btn.addEventListener("click", () => {
+    if (!online) return;
+    const text = COPY.emotes[id];
+    if (!text) return;
+    net.send({ t: "emote", id });
+    selfEmote = text;
+    selfEmoteAt = game.now;
+  });
+}
+
 $("start-hint").textContent =
   input.kind === "touch" ? "Drag to move · Tap to serve" : "Arrow keys or drag to move · Space to serve";
 $("over-hint").textContent = input.kind === "touch" ? "Tap to play again" : "Space or tap to play again";
@@ -237,8 +256,15 @@ const mp = mountMultiplayer({
     mpYou = session.myName;
     mpThem = session.peerName || "Friend";
     online?.stop();
+    $("emotes").hidden = false;
     online = new OnlineMatch(game, net, session.role === "guest" ? "guest" : "host", (youWon, you, them) => {
       mp?.noteResult(youWon, you, them);
+    }, {
+      onGuestEvent: (e) => game.emitMp(e),
+      onFriendEmote: (id) => {
+        const text = COPY.emotes[id];
+        if (text) bubble.show(text, game.now);
+      },
     });
   },
   onLeave: () => {
@@ -247,6 +273,7 @@ const mp = mountMultiplayer({
     mpYou = "";
     mpThem = "";
     controls.hidden = true;
+    $("emotes").hidden = true;
     showMenu();
   },
   setEscape: (fn) => {
@@ -268,9 +295,15 @@ function headAnchor() {
 
 function captionText(): string {
   const touch = input.kind === "touch";
-  const them = mpThem ? truncateName(mpThem) : CONFIG.opponentName;
-  if (game.phase === "SERVE" && game.server === "ai") return `${them} to serve`;
-  if (game.phase === "SERVE") return touch ? "Drag to move · Tap to serve" : "Arrow keys to move · Space to serve";
+  const them = themName();
+  if (online && online.strikes >= 2 && game.phase === "SERVE") return COPY.stillThere;
+  if (game.phase === "SERVE" && game.server === "ai") return `${them} ${COPY.toServe}`;
+  if (game.phase === "SERVE" && online) {
+    const left = Math.ceil(online.serveLeftMs / 1000);
+    const base = touch ? COPY.serveYouTouch : COPY.serveYouKeys;
+    return `${base} · ${left}`;
+  }
+  if (game.phase === "SERVE") return touch ? COPY.serveYouTouch : COPY.serveYouKeys;
   if (game.phase === "GAME_OVER") return "";
   return touch ? "Drag to move" : "Arrow keys to move · Space to serve";
 }
@@ -338,7 +371,10 @@ function render() {
     if (!behindTable && ball.pos.z <= CONFIG.netZ && !hiddenByTable(ball)) drawBall(ctx, P, ball, reducedMotion);
 
     // 9. Grab tooltip (mouse only).
-    if (input.kind === "mouse" && (input.hovering || input.grabbing)) {
+    if (selfEmote && game.now - selfEmoteAt < 900) {
+      const ps = paddleScreen(P, game.player, PLAYER_STYLE);
+      drawGrabTooltip(ctx, ps.x + ps.r * 0.55, ps.y + ps.r * 0.75, s, selfEmote);
+    } else if (input.kind === "mouse" && (input.hovering || input.grabbing)) {
       const ps = paddleScreen(P, game.player, PLAYER_STYLE);
       drawGrabTooltip(ctx, ps.x + ps.r * 0.55, ps.y + ps.r * 0.75, s, "You");
     }

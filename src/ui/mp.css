@@ -13,5 +13,7 @@
 #mp-root { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; pointer-events: none; }
 #mp-root .card { pointer-events: auto; }
 #mp-root[hidden] { display: none; }
+#emotes { display: flex; gap: 6px; }
+#emotes[hidden] { display: none; }
 .mp-actions { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 12px; }
 .mp-actions .btn { width: 100%; }

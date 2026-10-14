@@ -89,7 +89,10 @@ export function mountMultiplayer(hooks: ScreenHooks) {
     if (typeof msg === "string") return;
     if (msg.t === "peer_joined" && typeof msg.name === "string") dispatch({ type: "peerJoined", name: msg.name });
     if (msg.t === "peer_left") dispatch({ type: "peerLeft", name: String(msg.name || "Friend"), why: String(msg.why || "left") });
-    if (msg.t === "room_closed") dispatch({ type: "roomClosed", message: msg.why === "expired" ? "hostExpired" : msg.why === "inactivity" ? "inactivity" : "friendEnded" });
+      if (msg.t === "room_closed") {
+        if (msg.why === "forfeit") return;
+        dispatch({ type: "roomClosed", message: msg.why === "expired" ? "hostExpired" : msg.why === "inactivity" ? "inactivity" : "friendEnded" });
+      }
     if (msg.t === "start_ok") beginCountdown(true);
     if (msg.t === "start_rejected") dispatch({ type: "startRejected", message: "notConnected" });
     if (msg.t === "countdown" && session.role === "guest") {

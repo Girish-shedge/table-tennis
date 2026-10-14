@@ -1,4 +1,4 @@
-import { CONFIG, type Difficulty } from "../config";
+import { CONFIG, NET, type Difficulty } from "../config";
 import { clamp, gaussian } from "../render/sketch";
 import { AI } from "./ai";
 import { AIController, LocalInput, RemoteInput } from "./controllers";
@@ -51,6 +51,10 @@ export class Game {
   /** Host-authoritative or guest-rendered. vs-Bot leaves this false. */
   externalSim = false;
   mpRole: "host" | "guest" | null = null;
+  /** Auto-serves in a row. Reset by a deliberate serve. */
+  serveStrikes = 0;
+  /** Set when the third idle serve should be treated as a disconnect. */
+  idleSide: Side | null = null;
   private forgivenFar: { x: number; z: number } | null = null;
   aiPaddle: Paddle = makePaddle(0, CONFIG.aiPaddleHover, CONFIG.aiPaddleZ);
 
@@ -68,8 +72,16 @@ export class Game {
   on(l: Listener) {
     this.listeners.push(l);
   }
+  /** Guest applies a host event through the same presenters. */
+  emitMp(e: GameEvent) {
+    this.emit(e);
+  }
   private emit(e: GameEvent) {
     for (const l of this.listeners) l(e);
+  }
+
+  get phaseAge() {
+    return this.now - this.phaseAt;
   }
 
   private setPhase(p: Phase) {
@@ -131,7 +143,10 @@ export class Game {
   /** Space / click / tap. */
   primary() {
     if (this.externalSim) {
-      if (this.mpRole === "host" && this.phase === "SERVE" && this.server === "player") this.serve("player");
+      if (this.mpRole === "host" && this.phase === "SERVE" && this.server === "player") {
+        this.serveStrikes = 0;
+        this.serve("player");
+      }
       return;
     }
     if (this.phase === "SERVE" && this.server === "player") this.serve("player");
@@ -329,6 +344,8 @@ export class Game {
   enterOnline(role: "host" | "guest") {
     this.externalSim = true;
     this.mpRole = role;
+    this.serveStrikes = 0;
+    this.idleSide = null;
     this.score = { player: 0, ai: 0 };
     this.firstServer = "player";
     this.server = "player";
@@ -362,7 +379,10 @@ export class Game {
   }
 
   queueFarServe() {
-    if (this.mpRole === "host" && this.phase === "SERVE" && this.server === "ai") this.serveHumanFar();
+    if (this.mpRole === "host" && this.phase === "SERVE" && this.server === "ai") {
+      this.serveStrikes = 0;
+      this.serveHumanFar();
+    }
   }
 
   /** One 120 Hz step of the host match. Does not run the Bot. */
@@ -375,6 +395,13 @@ export class Game {
     switch (this.phase) {
       case "SERVE":
         this.holdBallAboveServer();
+        if (this.now - this.phaseAt >= NET.serveTimerMs) {
+          const idle = this.server;
+          this.serveStrikes++;
+          if (this.serveStrikes >= 3) this.idleSide = idle;
+          if (idle === "player") this.serve("player");
+          else this.serveHumanFar();
+        }
         break;
       case "RALLY":
         this.stepRally(dt);
