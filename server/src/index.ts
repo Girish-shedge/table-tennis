@@ -10,9 +10,33 @@ function stub(env: Env, code: string): DurableObjectStub<Room> {
   return env.ROOM.get(env.ROOM.idFromName(code)) as DurableObjectStub<Room>;
 }
 
-function requestedCode(request: Request): string | null {
+function localRequest(request: Request): boolean {
   const host = new URL(request.url).hostname;
-  if (host !== "127.0.0.1" && host !== "localhost") return null;
+  return host === "127.0.0.1" || host === "localhost";
+}
+
+/** Local tests only. A public client cannot shorten the room clocks. */
+function testDurations(request: Request): {
+  joinWindowMs?: number;
+  inactivityMs?: number;
+  reconnectMs?: number;
+  bothMs?: number;
+} {
+  if (!localRequest(request)) return {};
+  const pick = (header: string) => {
+    const n = Number(request.headers.get(header));
+    return Number.isFinite(n) && n >= 200 && n <= 120_000 ? n : undefined;
+  };
+  return {
+    joinWindowMs: pick("x-join-window-ms"),
+    inactivityMs: pick("x-inactivity-ms"),
+    reconnectMs: pick("x-reconnect-ms"),
+    bothMs: pick("x-both-ms"),
+  };
+}
+
+function requestedCode(request: Request): string | null {
+  if (!localRequest(request)) return null;
   const hinted = request.headers.get("x-room-code");
   if (!hinted) return null;
   const code = hinted.toUpperCase();
@@ -52,9 +76,19 @@ export default {
   },
 };
 
-async function readBody(request: Request): Promise<{ name?: unknown; v?: unknown } | null> {
+async function readBody(request: Request): Promise<{
+  name?: unknown;
+  v?: unknown;
+  previousCode?: unknown;
+  previousToken?: unknown;
+} | null> {
   try {
-    return (await request.json()) as { name?: unknown; v?: unknown };
+    return (await request.json()) as {
+      name?: unknown;
+      v?: unknown;
+      previousCode?: unknown;
+      previousToken?: unknown;
+    };
   } catch {
     return null;
   }
@@ -65,10 +99,14 @@ async function createRoom(request: Request, env: Env, cors: Headers): Promise<Re
   if (!body || typeof body.name !== "string" || typeof body.v !== "number") {
     return json({ error: "BAD_REQUEST" }, 400, cors);
   }
+  if (typeof body.previousCode === "string" && typeof body.previousToken === "string") {
+    const previous = body.previousCode.toUpperCase();
+    if (isRoomCode(previous)) await stub(env, previous).closeByHost(body.previousToken);
+  }
   const preferred = requestedCode(request);
   for (let attempt = 0; attempt < 8; attempt++) {
     const code = attempt === 0 && preferred ? preferred : randomRoomCode();
-    const result = await stub(env, code).create({ code, name: body.name, v: body.v });
+    const result = await stub(env, code).create({ code, name: body.name, v: body.v, ...testDurations(request) });
     if (result.ok) {
       return json({ code, playerId: result.playerId, token: result.token, expiresAt: result.expiresAt }, 201, cors);
     }
