@@ -47,6 +47,9 @@ for (const size of only) {
   await page.goto(`${base}/`);
   await page.waitForSelector("#mp-entry:not([hidden])");
   await shot(page, "01-start", size);
+  await page.getByTestId("play-friend").click();
+  await shot(page, "01b-friend-dialog", size);
+  await page.getByTestId("friend-cancel").click();
 
   await mp(page, "api.dispatch({type:'host'})");
   await shot(page, "02-creating", size);
@@ -100,10 +103,12 @@ for (const size of only) {
   const host = await hostCtx.newPage();
   const guest = await guestCtx.newPage();
   await host.goto(`${base}/?drive=miss`);
+  await host.getByTestId("play-friend").click();
   await host.getByTestId("host-game").click();
   await host.getByTestId("room-code").waitFor();
   const code = (await host.getByTestId("room-code").innerText()).replace(/\s+/g, "");
   await guest.goto(`${base}/?drive=miss`);
+  await guest.getByTestId("play-friend").click();
   await guest.getByTestId("join-code").click();
   for (let i = 0; i < 4; i++) await guest.getByTestId(`code-${i}`).fill(code[i]);
   await guest.getByTestId("guest-wait").waitFor();

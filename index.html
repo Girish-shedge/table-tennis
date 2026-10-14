@@ -81,10 +81,7 @@
         <button id="btn-vsbot" class="btn primary play" type="button" data-testid="play-bot">You vs Bot</button>
         <div id="mp-entry" class="mp-entry" hidden>
           <p id="mp-divider" class="mp-divider" data-testid="mp-divider"></p>
-          <div class="actions">
-            <button id="btn-host" class="btn" type="button" data-testid="host-game"></button>
-            <button id="btn-join" class="btn" type="button" data-testid="join-code"></button>
-          </div>
+          <button id="btn-friend" class="btn play" type="button" aria-haspopup="dialog" data-testid="play-friend"></button>
         </div>
       </div>
 
@@ -114,6 +111,25 @@
           </button>
         </div>
         <button id="mode-cancel" class="btn-quiet btn" type="button">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Play with a friend: host or join (copy comes from strings.ts) -->
+    <div id="friend-dialog" class="overlay" hidden>
+      <div class="card dialog-card" role="dialog" aria-modal="true" aria-labelledby="friend-title">
+        <h1 id="friend-title" class="mp-h"></h1>
+        <p id="friend-sub" class="sub"></p>
+        <div class="options" role="group" aria-labelledby="friend-title">
+          <button id="btn-host" class="option" type="button" data-testid="host-game">
+            <span class="icon option-icon" data-icon="host"></span>
+            <span class="option-text"><span id="host-name" class="option-name"></span><span id="host-desc" class="option-desc"></span></span>
+          </button>
+          <button id="btn-join" class="option" type="button" data-testid="join-code">
+            <span class="icon option-icon" data-icon="join"></span>
+            <span class="option-text"><span id="join-name" class="option-name"></span><span id="join-desc" class="option-desc"></span></span>
+          </button>
+        </div>
+        <button id="friend-cancel" class="btn-quiet btn" type="button" data-testid="friend-cancel">Cancel</button>
       </div>
     </div>
 

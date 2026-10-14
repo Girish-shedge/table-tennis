@@ -1,9 +1,13 @@
 /** All multiplayer copy. Screens read from here and nowhere else. */
 
 export const COPY = {
-  divider: "or play a friend",
+  divider: "or",
+  playFriend: "Play with a friend",
+  friendSub: "Start a room and invite them, or use the code they sent you.",
   host: "Host a game",
+  hostDesc: "Get a code and share the invite.",
   join: "Join with code",
+  joinDesc: "Type the 4 letters from your friend.",
   playingAs: "Playing as",
   creating: "Creating room",
   creatingSlow: "Taking longer than usual…",

@@ -718,6 +718,8 @@ Keep everything that exists: the crossed-bats icon, the title **Table Tennis**, 
 - A small line: "Playing as **Girish** ✎" (tap to edit). First launch shows a friendly default name like "Player 482". Saving uses `localStorage` and never errors if storage is blocked (E-33).
 - If the relay isn't configured or reachable, the two MP buttons are hidden (E-50). vs-Bot is untouched.
 
+*Current layout (15 Oct 2026):* **You vs Bot** (primary), a divider reading "or", then one white **Play with a friend** button. It opens a **Play with a friend** dialog with two option cards, **Host a game** (paper-plane icon) and **Join with code** (code-tile icon), plus Cancel. Choosing one closes the dialog and starts the usual host or join flow (S02 or S05). Esc, Cancel or a tap outside closes it. The whole friend entry is still hidden without a relay (E-50). The name now lives in the **My player** button (§30.2).
+
 ### 20.3 Top-corner controls in a match (MP addition)
 
 Single-player shows a static mode chip and a mute button. In multiplayer:
@@ -734,6 +736,7 @@ Single-player shows a static mode chip and a mute button. In multiplayer:
 | ID | Screen | Notes |
 |---|---|---|
 | S01 | **Start screen** | Extended as in §20.2 (this is the existing `MENU` state) |
+| S01b | **Play with a friend** | Dialog from the home page: Host a game / Join with code option cards, Cancel |
 | S02 | **Creating room** | A spinner. After 5 s: "Taking longer than usual…" with Retry |
 | S03 | **Host lobby** | Laid out like Join: heading "Host a game", the expiry countdown as the subheading, the four code tiles, then **Share invite** (primary) and Cancel |
 | S04 | **Host lobby, friend joined** | "Ravi joined", **Start game** (primary), Leave room |
@@ -1477,4 +1480,5 @@ These were found during the Day 2 design pass, which wasn't allowed to change lo
 - **Removed:** the palm on the red paddle and the profile bar in matches.
 - **Loader ball:** the bouncing ball in the Host and Reconnecting screens was frozen on phones with Reduce Motion turned on. It now always plays a gentle hop.
 - **Spacing** is on an 8 px grid. 4 px is used only as a half step inside small parts (badges, gaps between label lines).
+- **Home page friend entry:** You vs Bot, then "or", then **Play with a friend**, which opens a dialog with Host a game and Join with code (§20.2). The host and join flows are unchanged.
 - **Rally power fix (v2.1.1):** charged power now holds until your hit. Moving forward to the ball no longer drains it, and ↑ no longer empties the bar (§6.7).

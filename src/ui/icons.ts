@@ -42,6 +42,19 @@ export const ICONS: Record<string, string> = {
     `<path d="M7.6 9.6l2.8 2.8M10.4 9.6l-2.8 2.8M13.6 9.6l2.8 2.8M16.4 9.6l-2.8 2.8" stroke="${INK}" stroke-width="1.8"/>`,
     `<path d="M8.6 17c2-2.2 4.8-2.2 6.8 0" stroke="${INK}" stroke-width="2"/>`,
   ),
+  // Host: a paper plane, for sending an invite
+  host: `<svg ${base}>
+    <path d="M2.8 11.4L21 3.6l-5 16.6-4.6-5.8z" fill="#fff" stroke="${INK}" stroke-width="2"/>
+    <path d="M11.4 14.4L21 3.6" stroke="${INK}" stroke-width="2"/>
+    <path d="M11.4 14.4l-.4 5.2 3-2.8z" fill="${BLUE}" stroke="${INK}" stroke-width="2"/>
+  </svg>`,
+  // Join: two code tiles, the first with a typing cursor
+  join: `<svg ${base}>
+    <rect x="2.5" y="5.5" width="8.5" height="13" rx="2.4" fill="#fff" stroke="${INK}" stroke-width="2"/>
+    <rect x="13" y="5.5" width="8.5" height="13" rx="2.4" fill="#fff" stroke="${INK}" stroke-width="2"/>
+    <path d="M6.75 9.4v5.2" stroke="${BLUE}" stroke-width="2.4"/>
+    <circle cx="17.25" cy="12" r="1.4" fill="${INK}"/>
+  </svg>`,
   // Help: a ball with a question mark
   help: `<svg ${base}>
     <circle cx="12" cy="12" r="9.5" fill="#fff" stroke="${INK}" stroke-width="2"/>

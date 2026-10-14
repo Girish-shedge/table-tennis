@@ -77,8 +77,33 @@ export function mountMultiplayer(hooks: ScreenHooks) {
   const tab = { id: crypto.randomUUID(), at: Date.now() };
 
   $("mp-divider").textContent = COPY.divider;
-  $("btn-host").textContent = COPY.host;
-  $("btn-join").textContent = COPY.join;
+  $("btn-friend").textContent = COPY.playFriend;
+  $("friend-title").textContent = COPY.playFriend;
+  $("friend-sub").textContent = COPY.friendSub;
+  $("host-name").textContent = COPY.host;
+  $("host-desc").textContent = COPY.hostDesc;
+  $("join-name").textContent = COPY.join;
+  $("join-desc").textContent = COPY.joinDesc;
+
+  // "Play with a friend" opens a chooser; Host and Join then run the usual flows.
+  const friendDialog = $("friend-dialog");
+  const friendBtn = $<HTMLButtonElement>("btn-friend");
+  const closeFriend = (refocus: boolean) => {
+    friendDialog.hidden = true;
+    if (refocus) friendBtn.focus();
+  };
+  friendBtn.addEventListener("click", () => {
+    friendDialog.hidden = false;
+    $("btn-host").focus();
+  });
+  $("friend-cancel").addEventListener("click", () => closeFriend(true));
+  friendDialog.addEventListener("click", (e) => {
+    if (e.target === friendDialog) closeFriend(true);
+  });
+  friendDialog.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if (e.key === "Escape") closeFriend(true);
+  });
 
   hooks.setEscape(() => {
     if (session.role) dispatch({ type: "askLeave" });
@@ -675,8 +700,14 @@ export function mountMultiplayer(hooks: ScreenHooks) {
     return row;
   }
 
-  $<HTMLButtonElement>("btn-host").addEventListener("click", () => void host());
-  $<HTMLButtonElement>("btn-join").addEventListener("click", () => dispatch({ type: "openJoin" }));
+  $<HTMLButtonElement>("btn-host").addEventListener("click", () => {
+    closeFriend(false);
+    void host();
+  });
+  $<HTMLButtonElement>("btn-join").addEventListener("click", () => {
+    closeFriend(false);
+    dispatch({ type: "openJoin" });
+  });
   $<HTMLButtonElement>("btn-leave").addEventListener("click", () => {
     if (session.role) dispatch({ type: "askLeave" }); // against Bot, main.ts handles it
   });

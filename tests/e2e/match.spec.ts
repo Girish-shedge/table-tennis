@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 async function hostRoom(page: Page): Promise<string> {
   await page.goto("/?drive=miss");
+  await page.getByTestId("play-friend").click();
   await page.getByTestId("host-game").click();
   await expect(page.getByTestId("room-code")).toBeVisible();
   return (await page.getByTestId("room-code").innerText()).replace(/\s+/g, "");
@@ -9,6 +10,7 @@ async function hostRoom(page: Page): Promise<string> {
 
 async function joinByCode(page: Page, code: string) {
   await page.goto("/?drive=miss");
+  await page.getByTestId("play-friend").click();
   await page.getByTestId("join-code").click();
   for (let i = 0; i < 4; i++) await page.getByTestId(`code-${i}`).fill(code[i]);
   await expect(page.getByTestId("guest-wait")).toBeVisible();
