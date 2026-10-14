@@ -28,3 +28,14 @@ export function flipScore(score: Score): Score {
 export function flipSide(side: SideName): SideName {
   return side === "player" ? "ai" : "player";
 }
+
+/** Guest paddle target, already in host coordinates, clamped to the far half. */
+export function clampGuestTarget(x: number, z: number): { x: number; z: number } {
+  const xMax = CONFIG.tableW / 2 + CONFIG.paddleXMargin;
+  const zMin = CONFIG.tableL - CONFIG.paddleZMax;
+  const zMax = CONFIG.tableL - CONFIG.paddleZMin;
+  return {
+    x: Math.min(xMax, Math.max(-xMax, x)),
+    z: Math.min(zMax, Math.max(zMin, z)),
+  };
+}

@@ -1,25 +1,15 @@
 import { INPUT_HZ, INPUT_KEEPALIVE_HZ, SNAPSHOT_HZ } from "../../shared/constants";
-import { CONFIG, NET } from "../config";
+import { NET } from "../config";
 import type { Game, GameEvent } from "../game/state";
 import { FixedClock, forgivenessMs } from "./clock";
 import type { NetClient } from "./client";
 import { GuestView } from "./guestView";
-import { mirrorX, mirrorZ } from "./mirror";
+import { clampGuestTarget, mirrorX, mirrorZ } from "./mirror";
 
 interface Sample {
   t: number;
   x: number;
   z: number;
-}
-
-function clampFar(x: number, z: number): { x: number; z: number } {
-  const xMax = CONFIG.tableW / 2 + CONFIG.paddleXMargin;
-  const zMin = CONFIG.tableL - CONFIG.paddleZMax;
-  const zMax = CONFIG.tableL - CONFIG.paddleZMin;
-  return {
-    x: Math.min(xMax, Math.max(-xMax, x)),
-    z: Math.min(zMax, Math.max(zMin, z)),
-  };
 }
 
 /**
@@ -239,7 +229,7 @@ export class OnlineMatch {
       return;
     }
     if (this.role === "host" && msg.t === "input") {
-      const next = clampFar(Number(msg.x), Number(msg.z));
+      const next = clampGuestTarget(Number(msg.x), Number(msg.z));
       if (!Number.isFinite(next.x) || !Number.isFinite(next.z)) return;
       this.target = this.limitSpeed(next);
       this.samples.push({ t: this.game.now, x: this.target.x, z: this.target.z });
@@ -257,7 +247,7 @@ export class OnlineMatch {
     const max = 3;
     if (dist <= max) return next;
     const k = max / dist;
-    return clampFar(prev.x + dx * k, prev.z + dz * k);
+    return clampGuestTarget(prev.x + dx * k, prev.z + dz * k);
   }
 
   private rewind(): { x: number; z: number } | null {
