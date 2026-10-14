@@ -4,3 +4,5 @@ dist
 *.log
 .vercel
 frame_*.png
+.dev.vars
+.wrangler/

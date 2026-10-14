@@ -1,0 +1,16 @@
+{
+  "name": "tt-relay",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8787 --ip 127.0.0.1",
+    "check": "tsc --noEmit",
+    "test:echo": "node test/echo.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261014.0",
+    "typescript": "^5.6.3",
+    "wrangler": "^4.42.0"
+  }
+}
