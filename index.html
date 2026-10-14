@@ -8,102 +8,160 @@
     />
     <meta name="theme-color" content="#ffffff" />
     <title>Table Tennis</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/icon.png" />
     <link rel="preload" href="/fonts/SFCartoonistHand-Bold.ttf" as="font" type="font/ttf" crossorigin />
     <link rel="preload" href="/fonts/SFCartoonistHand.ttf" as="font" type="font/ttf" crossorigin />
   </head>
   <body>
     <canvas id="game" aria-label="Table tennis game"></canvas>
 
-    <!-- Top-right controls -->
+    <!-- Top bar: connection on the left, volume and close on the right -->
     <div id="controls" class="controls" hidden>
-      <span id="btn-mode" class="chip chip-static" title="Difficulty is locked for this match">
-        <span id="mode-label">Medium</span>
-      </span>
-      <button id="btn-conn" class="chip chip-conn" type="button" data-testid="connection" hidden title="Connection" aria-label="Connection" aria-expanded="false">
-        <svg id="conn-bars" class="bars" data-bars="3" viewBox="0 0 20 18" width="20" height="18" aria-hidden="true">
-          <rect class="bar b1" x="1" y="11" width="4.5" height="6" rx="1.4" />
-          <rect class="bar b2" x="7.75" y="6.5" width="4.5" height="10.5" rx="1.4" />
-          <rect class="bar b3" x="14.5" y="1" width="4.5" height="16" rx="1.4" />
-        </svg>
-        <span id="conn-ping"></span>
-      </button>
-      <button id="btn-mute" class="chip chip-icon" type="button" title="Mute (M)" aria-label="Mute" aria-pressed="false">
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-          <path class="spk" d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" />
-          <path class="wave" d="M16 8.5a4.5 4.5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-          <path class="wave" d="M18.5 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-          <path class="mute-x" d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-        </svg>
-      </button>
-      <button id="btn-leave" class="chip chip-icon" type="button" data-testid="leave-match" hidden title="Leave match" aria-label="Leave match">
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-          <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" />
-        </svg>
-      </button>
-      <div id="emotes" role="group" aria-label="Emotes" hidden>
-        <button class="chip" type="button" data-testid="emote-0" data-emote="0"></button>
-        <button class="chip" type="button" data-testid="emote-1" data-emote="1"></button>
-        <button class="chip" type="button" data-testid="emote-2" data-emote="2"></button>
-        <button class="chip" type="button" data-testid="emote-3" data-emote="3"></button>
-        <button class="chip" type="button" data-testid="emote-4" data-emote="4"></button>
+      <div class="controls-side">
+        <span id="btn-mode" class="chip chip-static" title="Difficulty is locked for this match">
+          <span id="mode-label">Medium</span>
+        </span>
+        <button id="btn-conn" class="chip chip-conn" type="button" data-testid="connection" hidden title="Connection" aria-label="Connection" aria-expanded="false">
+          <svg id="conn-bars" class="bars" data-bars="3" viewBox="0 0 20 18" width="20" height="18" aria-hidden="true">
+            <rect class="bar b1" x="1.5" y="11" width="4.5" height="6" rx="1.6" />
+            <rect class="bar b2" x="7.75" y="6.5" width="4.5" height="10.5" rx="1.6" />
+            <rect class="bar b3" x="14" y="1.5" width="4.5" height="15.5" rx="1.6" />
+          </svg>
+          <span id="conn-ping"></span>
+        </button>
+      </div>
+      <div class="controls-side">
+        <button id="btn-mute" class="chip chip-icon" type="button" title="Mute (M)" aria-label="Mute" aria-pressed="false">
+          <span class="icon" data-icon="volume"></span>
+        </button>
+        <button id="btn-leave" class="chip chip-icon" type="button" data-testid="leave-match" hidden title="Leave match" aria-label="Leave match">
+          <span class="icon" data-icon="close"></span>
+        </button>
       </div>
     </div>
 
-    <!-- Start / difficulty screen -->
-    <div id="overlay-start" class="overlay">
-      <div class="card">
-        <div class="card-art" aria-hidden="true">
-          <canvas id="card-art" width="170" height="120"></canvas>
-        </div>
+    <!-- Who is playing: your pick and your opponent, small, near the bottom -->
+    <div id="profiles" class="profiles" hidden>
+      <div class="profile you">
+        <span id="pf-you-face" class="profile-face"></span>
+        <span id="pf-you-name" class="profile-name">You</span>
+      </div>
+      <div class="profile them">
+        <span id="pf-them-face" class="profile-face"></span>
+        <span id="pf-them-name" class="profile-name">Bot</span>
+      </div>
+    </div>
+
+    <div id="emotes" role="group" aria-label="Emotes" hidden>
+      <button class="chip" type="button" data-testid="emote-0" data-emote="0"></button>
+      <button class="chip" type="button" data-testid="emote-1" data-emote="1"></button>
+      <button class="chip" type="button" data-testid="emote-2" data-emote="2"></button>
+      <button class="chip" type="button" data-testid="emote-3" data-emote="3"></button>
+      <button class="chip" type="button" data-testid="emote-4" data-emote="4"></button>
+    </div>
+
+    <!-- Home page -->
+    <main id="overlay-start" class="home">
+      <div class="home-top">
+        <button id="btn-help" class="chip" type="button" aria-haspopup="dialog" data-testid="how-to-play">
+          <span class="icon" data-icon="help" style="--icon: 24px"></span>
+          <span>How to play</span>
+        </button>
+        <button id="btn-profile" class="chip profile-btn" type="button" aria-haspopup="dialog" aria-label="My player: edit your name and avatar" data-testid="choose-player">
+          <span id="profile-btn-face" class="profile-face"></span>
+          <span id="profile-btn-name" class="profile-btn-name"></span>
+          <span class="icon" data-icon="pencil" style="--icon: 20px"></span>
+        </button>
+      </div>
+
+      <div class="home-main">
+        <img class="home-icon" src="/icon.png" width="160" height="160" alt="Table Tennis" />
         <h1>Table Tennis</h1>
-        <p class="sub">You vs <span id="start-opponent">Bot</span> · first to <span id="start-score">11</span>, win by 2</p>
-        <div class="modes" role="group" aria-label="Difficulty">
-          <button class="mode" data-mode="easy" type="button">
-            <span class="mode-name">Easy</span>
-          </button>
-          <button class="mode" data-mode="medium" type="button">
-            <span class="mode-name">Medium</span>
-          </button>
-          <button class="mode" data-mode="hard" type="button">
-            <span class="mode-name">Hard</span>
-          </button>
-        </div>
+        <p class="sub">Quick hand-drawn rallies. Beat Bot, or challenge a friend.</p>
+        <button id="btn-vsbot" class="btn primary hero play" type="button" data-testid="play-bot">You vs Bot</button>
         <div id="mp-entry" class="mp-entry" hidden>
           <p id="mp-divider" class="mp-divider" data-testid="mp-divider"></p>
           <div class="actions">
             <button id="btn-host" class="btn" type="button" data-testid="host-game"></button>
             <button id="btn-join" class="btn" type="button" data-testid="join-code"></button>
           </div>
-          <p class="mp-name">
-            <span id="mp-playing-as"></span>
-            <button id="btn-name" class="mp-name-btn" type="button" data-testid="player-name" aria-label="Edit your name">
-              <span id="btn-name-text"></span>
-              <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
-                <path d="M4 20l1-5L16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 2z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" />
-              </svg>
-            </button>
-          </p>
         </div>
-        <p class="info-badge">
-          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-            <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2.2" />
-            <circle cx="12" cy="7.6" r="1.4" fill="currentColor" />
-            <path d="M12 11v6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
-          </svg>
-          <span id="start-hint">Arrow keys or drag to move · Space to serve</span>
-        </p>
+      </div>
+
+      <!-- Footer: home page only -->
+      <footer class="footer">
+        <nav class="pill" aria-label="Links">
+          <a id="footer-instagram" href="#" target="_blank" rel="noopener">Instagram</a>
+          <a id="footer-x" href="#" target="_blank" rel="noopener">X</a>
+          <a id="footer-linkedin" href="#" target="_blank" rel="noopener">LinkedIn</a>
+        </nav>
+      </footer>
+    </main>
+
+    <!-- Game mode (You vs Bot) -->
+    <div id="mode-dialog" class="overlay" hidden>
+      <div class="card dialog-card" role="dialog" aria-modal="true" aria-labelledby="mode-title">
+        <h1 id="mode-title" class="mp-h">Game mode</h1>
+        <p class="sub">How tough should Bot be?</p>
+        <div class="options" role="group" aria-label="Game mode">
+          <button class="option" data-mode="easy" type="button">
+            <span class="icon option-icon" data-icon="easy"></span>
+            <span class="option-text"><span class="option-name">Easy</span><span class="option-desc">Slow and forgiving. Warm up here.</span></span>
+          </button>
+          <button class="option" data-mode="medium" type="button">
+            <span class="icon option-icon" data-icon="medium"></span>
+            <span class="option-text"><span class="option-name">Medium</span><span class="option-desc">A fair fight. Bot keeps up.</span></span>
+          </button>
+          <button class="option" data-mode="hard" type="button">
+            <span class="icon option-icon" data-icon="hard"></span>
+            <span class="option-text"><span class="option-name">Hard</span><span class="option-desc">Fast and sharp. Bot rarely misses.</span></span>
+          </button>
+        </div>
+        <button id="mode-cancel" class="btn-quiet btn" type="button">Cancel</button>
       </div>
     </div>
 
-    <!-- Name editor (multiplayer) -->
-    <div id="mp-name-dialog" class="overlay" hidden>
-      <div class="card mp-card" role="dialog" aria-modal="true" aria-labelledby="mp-name-title">
-        <h1 id="mp-name-title" class="mp-h"></h1>
-        <input id="mp-name-field" class="mp-field" type="text" maxlength="16" autocomplete="off" autocapitalize="words" spellcheck="false" aria-labelledby="mp-name-title" data-testid="name-field" />
-        <p id="mp-name-error" class="mp-warn" role="status"></p>
-        <div class="actions mp-actions mp-pair">
-          <button id="mp-name-save" class="btn primary" type="button" data-testid="name-save"></button>
-          <button id="mp-name-cancel" class="btn" type="button" data-testid="name-cancel"></button>
+    <!-- My player: name and avatar -->
+    <div id="avatar-dialog" class="overlay" hidden>
+      <div class="card dialog-card" role="dialog" aria-modal="true" aria-labelledby="avatar-title">
+        <h1 id="avatar-title" class="mp-h">My player</h1>
+        <label class="mp-label" for="profile-name-field">Your name</label>
+        <input id="profile-name-field" class="mp-field" type="text" maxlength="16" autocomplete="off" autocapitalize="words" spellcheck="false" data-testid="name-field" />
+        <p id="profile-name-error" class="mp-warn" role="status"></p>
+        <p class="mp-label">Your player</p>
+        <div id="avatar-picker" class="avatars" role="radiogroup" aria-label="Your player"></div>
+        <div class="actions single">
+          <button id="avatar-done" class="btn primary" type="button" data-testid="name-save">Done</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- How to play -->
+    <div id="help-dialog" class="overlay" hidden>
+      <div class="card dialog-card" role="dialog" aria-modal="true" aria-labelledby="help-title">
+        <h1 id="help-title" class="mp-h">How to play</h1>
+        <ul class="howto">
+          <li><span class="howto-icon" aria-hidden="true">1</span><p><strong>Move</strong><span>Arrow keys or A, D, W, S. Or drag the paddle with the mouse. On a phone, drag anywhere on the screen.</span></p></li>
+          <li><span class="howto-icon" aria-hidden="true">2</span><p><strong>Serve</strong><span>Press Space, or tap, when it's your serve. The serve switches every 2 points.</span></p></li>
+          <li><span class="howto-icon" aria-hidden="true">3</span><p><strong>Score</strong><span>Land the ball on your opponent's half. A miss, a net, an out or a double bounce gives them the point.</span></p></li>
+          <li><span class="howto-icon" aria-hidden="true">4</span><p><strong>Win</strong><span>First to 11 points, and you must win by 2.</span></p></li>
+          <li><span class="howto-icon" aria-hidden="true">5</span><p><strong>Extras</strong><span>Press M to mute. Press Esc or tap the X to leave a match. Playing a friend? Send them an emote.</span></p></li>
+        </ul>
+        <div class="actions single">
+          <button id="help-done" class="btn primary" type="button">Got it</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Leave a match against Bot -->
+    <div id="overlay-leave" class="overlay" hidden>
+      <div class="card" role="dialog" aria-modal="true" aria-labelledby="leave-title">
+        <h1 id="leave-title" class="mp-h">Leave match?</h1>
+        <p class="sub">Your score will be lost.</p>
+        <div class="actions">
+          <button id="btn-stay" class="btn primary" type="button" data-testid="bot-stay">Keep playing</button>
+          <button id="btn-quit" class="btn" type="button" data-testid="bot-leave">Leave</button>
         </div>
       </div>
     </div>
@@ -124,15 +182,6 @@
     <div id="mp-root" hidden></div>
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
     <div id="mp-live" class="sr-only" role="status" aria-live="polite"></div>
-
-    <!-- Footer pill -->
-    <footer class="footer">
-      <nav class="pill" aria-label="Links">
-        <a id="footer-instagram" href="#" target="_blank" rel="noopener">Instagram</a>
-        <a id="footer-x" href="#" target="_blank" rel="noopener">X</a>
-        <a id="footer-linkedin" href="#" target="_blank" rel="noopener">LinkedIn</a>
-      </nav>
-    </footer>
 
     <script type="module" src="/src/main.ts"></script>
   </body>

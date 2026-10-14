@@ -1,7 +1,7 @@
 import { isRoomCode, ROOM_CODE_ALPHABET } from "../../../shared/constants";
 import { sanitizeName } from "../../../shared/names";
 import { NET } from "../../config";
-import { ApiError, createRoom, extendRoom, joinRoom, previewRoom, wsUrl } from "../../net/api";
+import { ApiError, createRoom, joinRoom, previewRoom, wsUrl } from "../../net/api";
 import { net } from "../../net/client";
 import { resumeState } from "../../net/hostSim";
 import { clearSession, loadName, loadSession, saveName, saveSession, tabClaim } from "../../net/profile";
@@ -9,6 +9,7 @@ import { initialSession, reduceSession, type Session, type SessionEvent } from "
 import { COPY, type MessageKey } from "../../strings";
 import { mountConnChip } from "../conn";
 import { showToast } from "../toast";
+import { iconNode } from "../icons";
 
 export interface ScreenHooks {
   unlock: () => void;
@@ -54,16 +55,14 @@ export function mountMultiplayer(hooks: ScreenHooks) {
   }
   entry.hidden = false;
   const root = $("mp-root");
-  const nameBtn = $<HTMLButtonElement>("btn-name");
   const profile = loadName();
   let session = initialSession(profile.name, profile.saved);
   const setName = (name: string) => {
-    $("btn-name-text").textContent = name;
+    $("profile-btn-name").textContent = name;
   };
   setName(session.myName);
   mountConnChip();
   let lastScreen = session.screen;
-  let extendUsed = false;
   let said = "";
   let lastLeft = Infinity;
   let slowTimer = 0;
@@ -75,7 +74,6 @@ export function mountMultiplayer(hooks: ScreenHooks) {
   let backingOff = false;
   const tab = { id: crypto.randomUUID(), at: Date.now() };
 
-  $("mp-playing-as").textContent = COPY.playingAs;
   $("mp-divider").textContent = COPY.divider;
   $("btn-host").textContent = COPY.host;
   $("btn-join").textContent = COPY.join;
@@ -317,23 +315,8 @@ export function mountMultiplayer(hooks: ScreenHooks) {
     paint(card);
   }
 
-  function glyph(): SVGSVGElement {
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("viewBox", "0 0 24 24");
-    svg.setAttribute("width", "56");
-    svg.setAttribute("height", "56");
-    svg.setAttribute("aria-hidden", "true");
-    svg.setAttribute("class", "mp-glyph");
-    for (const [tag, attrs] of [
-      ["circle", { cx: "12", cy: "12", r: "10", fill: "none", stroke: "currentColor", "stroke-width": "2" }],
-      ["circle", { cx: "12", cy: "16.6", r: "1.3", fill: "currentColor" }],
-      ["path", { d: "M12 6.8v6", stroke: "currentColor", "stroke-width": "2.4", "stroke-linecap": "round", fill: "none" }],
-    ] as const) {
-      const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
-      for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
-      svg.append(node);
-    }
-    return svg;
+  function glyph(): HTMLElement {
+    return iconNode("oops", 64, "mp-glyph");
   }
 
   function dots() {
@@ -407,15 +390,12 @@ export function mountMultiplayer(hooks: ScreenHooks) {
       const link = typing(el("input", { id: "mp-link-field", class: "mp-field mp-link-field", "data-testid": "link-field", "aria-label": COPY.copyLink, readonly: "" })) as HTMLInputElement;
       link.hidden = true;
       card.append(link);
-      const extendBtn = button(COPY.extend, "mp-extend", () => void extend());
-      extendBtn.disabled = extendUsed;
       card.append(actions(
         button(COPY.share, "mp-share", () => void share(), true, false, true),
         pair(
           button(COPY.copyLink, "mp-copy-link", () => void share()),
           button(COPY.copyCode, "mp-copy-code", () => void navigator.clipboard.writeText(s.code || "").then(() => flash(COPY.linkCopied)).catch(() => flash(s.code || ""))),
         ),
-        extendBtn,
         button(COPY.cancel, "mp-cancel", () => {
           dropRoom();
           dispatch({ type: "cancel" });
@@ -427,16 +407,7 @@ export function mountMultiplayer(hooks: ScreenHooks) {
     if (s.screen === "hostReady") {
       card.classList.add("mp-split");
       const badge = el("p", { class: "info-badge mp-joined", "data-testid": "peer-joined" });
-      const check = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      check.setAttribute("viewBox", "0 0 24 24");
-      check.setAttribute("width", "18");
-      check.setAttribute("height", "18");
-      check.setAttribute("aria-hidden", "true");
-      const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      for (const [k, v] of Object.entries({ cx: "12", cy: "12", r: "10", fill: "none", stroke: "currentColor", "stroke-width": "2.2" })) circle.setAttribute(k, v);
-      const tick = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      for (const [k, v] of Object.entries({ d: "M7.5 12.4l3.1 3.1 5.9-6.4", fill: "none", stroke: "currentColor", "stroke-width": "2.4", "stroke-linecap": "round", "stroke-linejoin": "round" })) tick.setAttribute(k, v);
-      check.append(circle, tick);
+      const check = iconNode("check", 20);
       badge.append(check, el("span", {}, `${peer} ${COPY.joined}`));
       card.append(el("p", { class: "mp-eyebrow" }, COPY.roomCode), codeCard(s.code || "", true), el("div", { class: "mp-spacer" }), badge);
       announce(`${peer} ${COPY.joined}`);
@@ -674,62 +645,11 @@ export function mountMultiplayer(hooks: ScreenHooks) {
     return row;
   }
 
-  async function extend() {
-    if (!session.code || !session.token) return;
-    try {
-      const next = await extendRoom(NET.relayUrl, session.code, session.token);
-      expiresAt = next.expiresAt;
-      extendUsed = true;
-      flash(COPY.extend);
-      render();
-    } catch {
-      flash(COPY.extend);
-    }
-  }
-
   $<HTMLButtonElement>("btn-host").addEventListener("click", () => void host());
   $<HTMLButtonElement>("btn-join").addEventListener("click", () => dispatch({ type: "openJoin" }));
-  $<HTMLButtonElement>("btn-leave").addEventListener("click", () => dispatch({ type: "askLeave" }));
-  const nameDialog = $("mp-name-dialog");
-  const nameField = typing($("mp-name-field")) as HTMLInputElement;
-  const nameError = $("mp-name-error");
-  $("mp-name-title").textContent = COPY.yourName;
-  $("mp-name-save").textContent = COPY.save;
-  $("mp-name-cancel").textContent = COPY.cancel;
-  nameBtn.setAttribute("aria-label", COPY.editName);
-
-  function closeName() {
-    nameDialog.hidden = true;
-    nameBtn.focus();
-  }
-  function saveNameDialog() {
-    const clean = sanitizeName(nameField.value);
-    if (!clean) {
-      nameError.textContent = COPY.nameError;
-      nameField.setAttribute("aria-invalid", "true");
-      nameField.focus();
-      return;
-    }
-    saveName(clean);
-    session = { ...session, myName: clean, nameSaved: true };
-    setName(clean);
-    closeName();
-  }
-  nameBtn.addEventListener("click", () => {
-    nameField.value = session.myName;
-    nameError.textContent = "";
-    nameField.removeAttribute("aria-invalid");
-    nameDialog.hidden = false;
-    nameField.focus();
-    nameField.select();
+  $<HTMLButtonElement>("btn-leave").addEventListener("click", () => {
+    if (session.role) dispatch({ type: "askLeave" }); // against Bot, main.ts handles it
   });
-  $("mp-name-save").addEventListener("click", saveNameDialog);
-  $("mp-name-cancel").addEventListener("click", closeName);
-  nameField.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") saveNameDialog();
-    if (event.key === "Escape") closeName();
-  });
-
   window.addEventListener("popstate", () => {
     if (session.screen === "hostLobby" || session.screen === "hostReady" || session.screen === "guestLobby" || session.screen === "match") {
       dispatch({ type: "askLeave" });
@@ -745,7 +665,7 @@ export function mountMultiplayer(hooks: ScreenHooks) {
       if (session.token) return;
       if (tabClaim(tab, theirs) === "yield") dispatch({ type: "roomClosed", message: "duplicate" });
     };
-    $<HTMLButtonElement>("btn-name").dataset.tab = tab.id;
+    $<HTMLButtonElement>("btn-profile").dataset.tab = tab.id;
   }
 
   window.setInterval(() => {
@@ -797,6 +717,11 @@ export function mountMultiplayer(hooks: ScreenHooks) {
   return {
     session: () => session,
     dispatch,
+    /** The My player dialog saved a new name. */
+    setName(name: string) {
+      session = { ...session, myName: name, nameSaved: true };
+      setName(name);
+    },
     noteResult(youWon: boolean, you: number, them: number) {
       dispatch({ type: "matchOver", youWon, you, them });
       $<HTMLButtonElement>("btn-conn").hidden = true;

@@ -85,3 +85,6 @@ export function gaussian(): number {
   while (v === 0) v = Math.random();
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
+
+/** Font size in px for canvas text: scales with the layout but stays between min and max, so it matches the CSS type scale on every screen. */
+export const fontPx = (base: number, s: number, min: number, max: number) => Math.round(Math.min(max, Math.max(min, base * s)));

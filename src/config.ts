@@ -175,7 +175,7 @@ export const COLORS = {
   paddleBlue: "#3F78BE",
   bubble: "#F23B3B",
   shadow: "rgba(10, 79, 153, 0.45)",
-  muted: "#8A8A8A",
+  muted: "#666666",
   white: "#FFFFFF",
 };
 

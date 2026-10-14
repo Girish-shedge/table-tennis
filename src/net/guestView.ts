@@ -108,7 +108,7 @@ export class GuestView {
     const far = { x: mirrorX(snap.hp.x), z: mirrorZ(snap.hp.z) };
     game.aiPaddle.pos.x = far.x;
     game.aiPaddle.pos.z = far.z;
-    game.aiPaddle.pos.y = CONFIG.paddleHover;
+    game.aiPaddle.pos.y = CONFIG.aiPaddleHover;
     game.aiPaddle.tilt = -snap.hp.tilt;
     game.score = flipScore(snap.score);
     game.server = flipSide(snap.server);

@@ -1,8 +1,7 @@
 /*
- * Multiplayer components. Built from the existing tokens in styles.css:
- * --ink, --bubble, --table, the type scale (--t-*), the .card / .btn / .chip
- * shapes and the info badge. Extra greys (#444, #d9d9d9) and the paddle red
- * and blue are already used elsewhere in the game. No new colours.
+ * Multiplayer components. Built from the tokens in styles.css: --ink, --primary
+ * (the court blue), --danger (red, only for warnings), the type scale (--t-*),
+ * and the .card / .btn / .chip shapes. Extra greys (#444, #d9d9d9) are shared.
  * Text that must pass 4.5:1 uses ink or #444, never --muted. The red --bubble
  * is only used for large bold text (21 px and up), icons and fills.
  */
@@ -26,21 +25,15 @@
   border: 0;
 }
 
-/* ---- Focus ring (multiplayer controls only) ------------------------------ */
-#mp-entry :is(.btn, .mp-name-btn):focus-visible,
-#mp-root :is(.btn, .mp-link, .mp-field, .code-input):focus-visible,
-#mp-name-dialog :is(.btn, .mp-field):focus-visible,
-.controls:has(#btn-conn:not([hidden])) .chip:focus-visible,
-#emotes .chip:focus-visible,
-.card .mode:focus-visible,
-.controls .chip:focus-visible {
-  outline: 3px solid var(--table);
-  outline-offset: 3px;
+/* ---- Focus: no outline ring. Selection is shown by the lift on the control itself. ---- */
+:is(.btn, .chip, .level, .avatar, .mp-link, .mp-field, .code-input, .mp-name-btn):focus,
+:is(.btn, .chip, .level, .avatar, .mp-link, .mp-field, .code-input, .mp-name-btn):focus-visible {
+  outline: none;
 }
 
 /* ---- Start screen additions --------------------------------------------- */
 .mp-entry {
-  margin-top: 2px;
+  margin-top: 0;
 }
 .mp-divider {
   display: flex;
@@ -59,7 +52,7 @@
   background: var(--mp-line);
 }
 .mp-name {
-  margin: 6px 0 0;
+  margin: 8px 0 0;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -71,11 +64,11 @@
   appearance: none;
   background: none;
   border: 0;
-  min-height: 46px;
-  padding: 0 6px;
+  min-height: 48px;
+  padding: 0 8px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   max-width: 220px;
   font: 700 var(--t-body)/1 var(--font);
   color: var(--ink);
@@ -89,17 +82,14 @@
   border-bottom: 2px dashed var(--ink);
   padding-bottom: 2px;
 }
-.mp-name-btn svg {
-  flex: none;
-}
-.mp-name-btn:hover svg {
-  transform: rotate(-12deg);
-}
-.mp-name-btn svg {
+.mp-name-btn .icon {
   transition: transform 0.12s ease;
 }
+.mp-name-btn:hover .icon {
+  transform: rotate(-12deg);
+}
 .mp-entry + .info-badge {
-  margin-top: 8px;
+  margin-top: 16px;
 }
 
 /* ---- Cards, titles, text ------------------------------------------------- */
@@ -143,7 +133,7 @@
 }
 .mp-card .sub {
   color: var(--mp-text);
-  margin: 0 0 10px;
+  margin: 0 0 12px;
 }
 .mp-card .hint,
 .mp-eyebrow {
@@ -151,7 +141,7 @@
   color: var(--mp-text);
 }
 .mp-eyebrow {
-  margin: 2px 0 10px;
+  margin: 4px 0 8px;
   font-size: var(--t-label);
   font-weight: 700;
 }
@@ -159,10 +149,10 @@
   animation: none;
 }
 .mp-warn {
-  margin: 10px 0 0;
+  margin: 12px 0 0;
   min-height: 0;
   font: 700 var(--t-body)/1.2 var(--font);
-  color: var(--bubble);
+  color: var(--danger);
 }
 .mp-warn:empty {
   display: none;
@@ -172,7 +162,7 @@
 .mp-actions {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   margin-top: 16px;
 }
 .mp-actions .btn {
@@ -184,15 +174,15 @@
   grid-template-columns: 1fr 1fr;
 }
 .btn.hero {
-  font-size: var(--t-heading);
-  padding: 13px 18px;
-  min-height: 58px;
+  font-size: var(--t-subtitle);
+  padding: 12px 16px;
+  min-height: 56px;
 }
 .btn:disabled {
   opacity: 0.45;
   cursor: default;
   transform: none;
-  box-shadow: 0 3px 0 var(--ink);
+  box-shadow: 0 4px 0 var(--ink);
 }
 .btn-quiet {
   border-color: transparent;
@@ -216,7 +206,7 @@
   border: 0;
   min-height: 44px;
   padding: 0 12px;
-  margin: 2px auto 0;
+  margin: 4px auto 0;
   font: 400 var(--t-label)/1 var(--font);
   color: var(--mp-text);
   text-decoration: underline;
@@ -235,11 +225,11 @@
   display: flex;
   justify-content: center;
   gap: 8px;
-  margin: 8px 0 6px;
+  margin: 8px 0;
 }
 .code-tile,
 .code-input {
-  width: 62px;
+  width: 64px;
   height: 76px;
   display: grid;
   place-items: center;
@@ -247,7 +237,7 @@
   border-radius: 16px;
   background: #fff;
   color: var(--ink);
-  box-shadow: 0 3px 0 var(--ink);
+  box-shadow: 0 4px 0 var(--ink);
   font: 700 var(--t-title)/1 var(--font);
   text-transform: uppercase;
   padding: 0;
@@ -264,32 +254,28 @@
 }
 .code-card.small .code-tile {
   width: 44px;
-  height: 54px;
+  height: 56px;
   font-size: var(--t-heading);
   border-radius: 12px;
 }
 .code-input {
   text-align: center;
-  caret-color: var(--bubble);
+  caret-color: var(--primary);
   transition: transform 0.08s ease, box-shadow 0.08s ease;
 }
 .code-input:focus {
   transform: translateY(-2px);
-  box-shadow: 0 5px 0 var(--ink);
+  box-shadow: 0 6px 0 var(--ink);
   outline: none;
 }
-.code-input:focus-visible {
-  outline: 3px solid var(--table);
-  outline-offset: 3px;
-}
 .mp-expiry {
-  margin: 8px 0 6px;
+  margin: 8px 0;
   font: 700 var(--t-label)/1.2 var(--font);
   color: var(--mp-text);
 }
 .mp-expiry.urgent {
   font-size: var(--t-body);
-  color: var(--bubble);
+  color: var(--danger);
   animation: urgent-pulse 1s ease-in-out infinite;
 }
 .mp-spacer {
@@ -297,14 +283,14 @@
 }
 .mp-link-field {
   width: 100%;
-  margin: 6px 0 0;
+  margin: 8px 0 0;
 }
 
 /* ---- Name field ---------------------------------------------------------- */
 .mp-label {
   display: block;
   text-align: left;
-  margin: 14px 4px 6px;
+  margin: 16px 4px 8px;
   font: 700 var(--t-label)/1 var(--font);
   color: var(--mp-text);
 }
@@ -313,25 +299,21 @@
   min-height: 52px;
   border: 2.5px solid var(--ink);
   border-radius: 999px;
-  padding: 8px 18px;
+  padding: 8px 20px;
   background: #fff;
   color: var(--ink);
   text-align: center;
   font: 700 var(--t-body)/1.2 var(--font);
-  box-shadow: 0 3px 0 var(--ink);
+  box-shadow: 0 4px 0 var(--ink);
   transition: transform 0.08s ease, box-shadow 0.08s ease;
 }
 .mp-field:focus {
   transform: translateY(-2px);
-  box-shadow: 0 5px 0 var(--ink);
+  box-shadow: 0 6px 0 var(--ink);
   outline: none;
 }
-.mp-field:focus-visible {
-  outline: 3px solid var(--table);
-  outline-offset: 3px;
-}
 .mp-field[aria-invalid="true"] {
-  border-color: var(--bubble);
+  border-color: var(--danger);
 }
 
 /* ---- Status: joined badge, waiting dots, bouncing ball ------------------- */
@@ -343,7 +325,7 @@
 }
 .mp-dots {
   display: inline-flex;
-  gap: 6px;
+  gap: 4px;
   margin-left: 8px;
   vertical-align: middle;
 }
@@ -363,15 +345,15 @@
 .mp-ball {
   position: relative;
   height: 64px;
-  margin: 4px auto 6px;
-  width: 60px;
+  margin: 4px auto 8px;
+  width: 64px;
 }
 .mp-ball span {
   position: absolute;
-  left: 19px;
+  left: 20px;
   bottom: 8px;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: 2.5px solid var(--ink);
   background: #fff;
@@ -380,17 +362,17 @@
 .mp-ball::after {
   content: "";
   position: absolute;
-  left: 14px;
-  bottom: 2px;
+  left: 16px;
+  bottom: 4px;
   width: 32px;
-  height: 6px;
+  height: 8px;
   border-radius: 50%;
   background: var(--mp-line);
   animation: ball-shadow 0.8s cubic-bezier(0.3, 0, 0.7, 1) infinite;
 }
 .mp-glyph {
   display: block;
-  margin: -4px auto 6px;
+  margin: -4px auto 8px;
   color: var(--ink);
 }
 
@@ -399,8 +381,8 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  gap: 14px;
-  margin: 6px 0 4px;
+  gap: 16px;
+  margin: 8px 0 4px;
   font: 700 var(--t-heading)/1 var(--font);
 }
 .mp-score .side {
@@ -409,7 +391,7 @@
   align-items: center;
   gap: 4px;
   min-width: 0;
-  max-width: 130px;
+  max-width: 128px;
 }
 .mp-score {
   --mp-num: var(--t-title);
@@ -450,18 +432,18 @@
   border: 3px solid var(--ink);
   border-radius: 50%;
   background: #fff;
-  box-shadow: 5px 6px 0 var(--ink);
+  box-shadow: 4px 4px 0 var(--ink);
 }
 .mp-count svg {
   position: absolute;
-  inset: 5px;
-  width: calc(100% - 10px);
-  height: calc(100% - 10px);
+  inset: 4px;
+  width: calc(100% - 8px);
+  height: calc(100% - 8px);
   transform: rotate(-90deg);
 }
 .mp-count circle {
   fill: none;
-  stroke: var(--bubble);
+  stroke: var(--primary);
   stroke-width: 7;
   stroke-linecap: round;
   stroke-dasharray: 377;
@@ -478,39 +460,28 @@
   animation: count-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
-/* ---- Connection chip and match controls --------------------------------- */
-.controls:has(#btn-conn:not([hidden])) {
-  align-items: center;
-}
-.controls:has(#btn-conn:not([hidden])) .chip {
-  min-height: 44px;
-}
-.controls:has(#btn-conn:not([hidden])) .chip-icon {
-  min-width: 44px;
-  padding: 0;
-  justify-content: center;
-}
+/* ---- Connection chip (top left) and match controls ----------------------- */
 .chip-conn {
-  display: inline-flex;
-  align-items: center;
   gap: 0;
-  padding: 0 14px;
+  padding: 0 12px;
 }
 .chip-conn .bars .bar {
-  fill: var(--ink);
+  fill: var(--table);
+  stroke: var(--ink);
+  stroke-width: 1.6;
 }
 .bars[data-bars="2"] .b3,
 .bars[data-bars="1"] .b3,
 .bars[data-bars="1"] .b2 {
-  fill: var(--mp-line);
+  fill: #fff;
 }
 .chip-conn.weak .bars .bar {
-  fill: var(--bubble);
+  fill: var(--danger);
 }
 .chip-conn.weak .bars[data-bars="2"] .b3,
 .chip-conn.weak .bars[data-bars="1"] .b3,
 .chip-conn.weak .bars[data-bars="1"] .b2 {
-  fill: var(--mp-line);
+  fill: #fff;
 }
 #conn-ping {
   display: inline-block;
@@ -528,9 +499,6 @@
   margin-left: 8px;
   opacity: 1;
 }
-#btn-leave svg {
-  display: block;
-}
 
 /* ---- Emote tray ---------------------------------------------------------- */
 #emotes {
@@ -542,7 +510,7 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   width: max-content;
   max-width: calc(100vw - 16px);
 }
@@ -552,8 +520,7 @@
 #emotes .chip {
   min-height: 44px;
   min-width: 44px;
-  padding: 0 11px;
-  opacity: 1;
+  padding: 0 12px;
 }
 #emotes .chip:active {
   animation: emote-tap 0.25s ease;
@@ -564,15 +531,15 @@
   position: fixed;
   left: 50%;
   translate: -50% 0;
-  bottom: calc(124px + env(safe-area-inset-bottom));
+  top: calc(68px + env(safe-area-inset-top));
   z-index: 12;
   max-width: min(92vw, 360px);
-  padding: 10px 18px;
+  padding: 12px 20px;
   border: 2.5px solid var(--ink);
   border-radius: 999px;
   background: #fff;
   color: var(--ink);
-  box-shadow: 0 3px 0 var(--ink);
+  box-shadow: 0 4px 0 var(--ink);
   font: 700 var(--t-label)/1.2 var(--font);
   text-align: center;
   pointer-events: none;
@@ -587,11 +554,26 @@
 .toast.warn::before {
   content: "";
   display: inline-block;
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   margin-right: 8px;
   border-radius: 50%;
-  background: var(--bubble);
+  background: var(--danger);
+}
+
+/* Wide screens: the toast sits in the top bar, between the two control groups. */
+@media (min-width: 640px) {
+  .toast {
+    top: calc(12px + env(safe-area-inset-top));
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  .toast[hidden] {
+    display: none;
+  }
 }
 
 /* ---- Small screens ------------------------------------------------------- */
@@ -600,24 +582,17 @@
   .code-input {
     width: 56px;
     height: 68px;
-    font-size: 44px;
     border-radius: 14px;
   }
-  .btn.hero {
-    font-size: 24px;
-  }
-  .mp-score {
-    --mp-num: 44px;
-  }
   #emotes .chip {
-    padding: 0 9px;
+    padding: 0 8px;
   }
 }
 @media (max-width: 340px) {
   .code-tile,
   .code-input {
-    width: 50px;
-    height: 62px;
+    width: 48px;
+    height: 64px;
   }
 }
 
@@ -632,7 +607,7 @@
     flex-direction: column;
     flex-wrap: nowrap;
     align-items: stretch;
-    width: 98px;
+    width: 96px;
   }
   #emotes .chip {
     width: 100%;
@@ -643,56 +618,17 @@
 
 /* ---- Short landscape (phones on their side) ------------------------------ */
 @media (orientation: landscape) and (max-height: 520px) {
-  .card:has(> #mp-entry:not([hidden])) {
-    width: min(700px, 100%);
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    column-gap: 24px;
-    padding: 12px 24px 14px;
-  }
-  .card:has(> #mp-entry:not([hidden])) > .card-art {
-    display: none;
-  }
-  .card:has(> #mp-entry:not([hidden])) > h1 {
-    grid-column: 1 / -1;
-    font-size: 40px;
-    margin: 0;
-  }
-  .card:has(> #mp-entry:not([hidden])) > .sub {
-    grid-column: 1 / -1;
-    margin: 0 0 10px;
-  }
-  .card:has(> #mp-entry:not([hidden])) > .modes {
-    grid-column: 1;
-    align-self: center;
-  }
-  .card:has(> #mp-entry:not([hidden])) > #mp-entry {
-    grid-column: 2;
-    margin: 0;
-  }
-  .card:has(> #mp-entry:not([hidden])) .mp-divider {
-    margin: 0 0 8px;
-  }
-  .card:has(> #mp-entry:not([hidden])) > .info-badge {
-    grid-column: 1 / -1;
-    justify-self: center;
-    margin-top: 6px;
-  }
-  .card:has(> #mp-entry:not([hidden])) .mp-name {
-    margin-top: 0;
-  }
-
   .mp-card {
-    padding: 14px 22px 14px;
+    padding: 16px 24px;
   }
   .mp-card h1 {
-    font-size: 40px;
+    font-size: var(--t-heading);
   }
   .mp-card .mp-h {
     font-size: var(--t-heading);
   }
   .mp-actions {
-    margin-top: 10px;
+    margin-top: 12px;
   }
   .mp-actions .btn {
     min-height: 44px;
@@ -705,12 +641,12 @@
   }
   .code-tile,
   .code-input {
-    height: 62px;
+    height: 64px;
     width: 52px;
-    font-size: 40px;
+    font-size: var(--t-heading);
   }
   .mp-score {
-    --mp-num: 40px;
+    --mp-num: var(--t-heading);
   }
   .mp-split {
     display: grid;
@@ -731,16 +667,10 @@
     min-height: 48px;
     padding-top: 8px;
     padding-bottom: 8px;
-    font-size: 24px;
+    font-size: var(--t-body);
   }
   .mp-ball {
     height: 48px;
-  }
-  .toast {
-    left: calc(12px + env(safe-area-inset-left));
-    translate: none;
-    bottom: calc(64px + env(safe-area-inset-bottom));
-    max-width: 200px;
   }
 }
 
@@ -787,7 +717,7 @@
     opacity: 0.45;
   }
   30% {
-    translate: 0 -6px;
+    translate: 0 -8px;
     opacity: 1;
   }
 }
@@ -798,7 +728,7 @@
     animation-timing-function: cubic-bezier(0.2, 0.6, 0.4, 1);
   }
   50% {
-    translate: 0 -34px;
+    translate: 0 -32px;
     animation-timing-function: cubic-bezier(0.6, 0, 0.8, 0.4);
   }
 }
@@ -836,7 +766,7 @@
 @keyframes toast-in {
   from {
     opacity: 0;
-    translate: -50% 10px;
+    translate: -50% -12px;
   }
   to {
     opacity: 1;
@@ -846,26 +776,7 @@
 @keyframes toast-out {
   to {
     opacity: 0;
-    translate: -50% 6px;
-  }
-}
-
-@media (orientation: landscape) and (max-height: 520px) {
-  @keyframes toast-in {
-    from {
-      opacity: 0;
-      translate: 0 10px;
-    }
-    to {
-      opacity: 1;
-      translate: 0 0;
-    }
-  }
-  @keyframes toast-out {
-    to {
-      opacity: 0;
-      translate: 0 6px;
-    }
+    translate: -50% -8px;
   }
 }
 

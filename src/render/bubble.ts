@@ -1,5 +1,5 @@
 import { COLORS, CONFIG, FONTS } from "../config";
-import { easeOutBack, roundRect } from "./sketch";
+import { easeOutBack, fontPx, roundRect } from "./sketch";
 
 /** Red speech bubble with white serif text that pops in and fades out. */
 export class Bubble {
@@ -19,14 +19,15 @@ export class Bubble {
     const scale = easeOutBack(popT);
     const alpha = age > CONFIG.bubbleHoldMs ? 1 - (age - CONFIG.bubbleHoldMs) / CONFIG.bubbleFadeMs : 1;
 
-    const font = `700 ${Math.round(19 * s)}px ${FONTS.serif}`;
+    const fs = fontPx(20, s, 16, 24);
+    const font = `700 ${fs}px ${FONTS.serif}`;
     ctx.save();
     ctx.font = font;
     const padX = 9 * s;
     const padY = 5 * s;
     const tw = ctx.measureText(this.text).width;
     const w = tw + padX * 2;
-    const h = 19 * s * 1.1 + padY * 2;
+    const h = fs * 1.1 + padY * 2;
 
     ctx.globalAlpha = alpha;
     ctx.translate(ax, ay);
@@ -54,7 +55,7 @@ export class Bubble {
 /** The red `Grab` pill shown beside the player's paddle on hover / drag. */
 export function drawGrabTooltip(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, label = "Grab") {
   ctx.save();
-  const font = `700 ${Math.round(16 * s)}px ${FONTS.serif}`;
+  const font = `700 ${fontPx(16, s, 14, 20)}px ${FONTS.serif}`;
   ctx.font = font;
   const padX = 8 * s;
   const w = ctx.measureText(label).width + padX * 2;

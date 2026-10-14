@@ -1389,3 +1389,27 @@ These were found during the Day 2 design pass, which wasn't allowed to change lo
 | Serve-timer ring isn't drawn | no timer value in render state | The serve timer still works, it just isn't visible |
 | Space on a focused button may also fire the game's primary action | `src/game/input.ts` | Desktop keyboard only; result screen doesn't autofocus Rematch to avoid accidental rematches |
 | `SERVE_TIMEOUTS_BEFORE_PROMPT` is defined but no prompt is shown | `shared/constants.ts` | Two serve timeouts don't trigger a prompt |
+
+
+---
+
+## 30. UI Refresh (14 Oct 2026)
+
+- **Home page:** the start overlay is now a full white page: logo (`public/icon.png`, also the favicon), title, **Pick your player** row, difficulty buttons, Host / Join, name, hint, and the Instagram / X / LinkedIn footer. The footer appears on the home page only.
+- **Avatars:** six looks (Wow, Cap, Cool, Fierce, Dizzy, Wink) in `src/ui/avatars.ts`, drawn as the Bot blob head with the nose bump. The pick is saved in `localStorage` (`tt-avatar`). During a match, a small profile bar near the bottom shows your avatar and name and your opponent's (Bot's face vs Bot). Online, avatars are exchanged inside the relay's existing `emote` message (`id: -1`, `avatar: "<id>"`), so no relay change was needed. An unknown peer avatar falls back to Bot's face.
+- **Colour roles:** primary = court blue `#0A8CFF` (main buttons, selected avatar, focus lift; hover `#0070D6`); secondary = white with an ink outline (all other buttons and chips); ink for text and outlines; danger red `#F23B3B` only for warnings, errors and the "you" accents. Muted text is `#666`.
+- **Type scale:** desktop 56 / 32 / 24 / 20 / 16 / 14, phones (width up to 600 px, or short landscape) 40 / 28 / 20 / 18 / 16 / 14 as `--t-title`, `--t-heading`, `--t-subtitle`, `--t-body`, `--t-label`, `--t-caption`. Canvas text uses `fontPx()` with the same limits (never under 14 px).
+- **Spacing:** every padding, margin, gap and size is a multiple of 4.
+- **Top bar:** connection (and difficulty label) on the left, volume and close on the right. Toasts appear at the top. No focus outline ring anywhere. The "+2 min" room button is removed.
+- **Opponent paddle:** drawn after the table, and the guest's view uses `aiPaddleHover`, so the far paddle is no longer cut off by the table edge.
+### 30.1 Follow-up (14 Oct 2026)
+
+- **Avatars redrawn** larger and more expressive (shaded head, cheeks, highlights, bolder props).
+- **Difficulty is a choice, not three actions.** Easy / Medium / Hard are white options (the last pick is saved as `tt-level`, default Medium); the single solid-blue primary is **Play vs Bot**. Host and Join stay white.
+- **Player picker moved** to a **My player** button at the top right of the home page. It opens a dialog with the six avatars and a Done button.
+- **Leaving a Bot match:** the close button is now shown in Bot games too (Esc does the same). It asks "Leave match?" and pauses the game while the question is open.
+### 30.2 Home page v3 (14 Oct 2026)
+
+- **Primary CTA is You vs Bot.** It opens a **Game mode** dialog (Easy / Medium / Hard, each with a one-line description); choosing one starts the match. The always-visible mode buttons and the hint badge are gone.
+- **Top of the home page:** **How to play** (left) opens the full instructions (moving, serving, scoring, winning, extras); **My player** (right) shows your avatar and name and opens one dialog to edit both. The bottom Playing-as row is removed. The name is saved with the same storage key and is passed to the multiplayer session through `setName`.
+- **Subheading:** Quick hand-drawn rallies. Beat Bot, or challenge a friend.

@@ -21,20 +21,34 @@
 }
 
 :root {
+  /* Colour roles.
+     Primary = the court blue: every main button and selected state.
+     Secondary = white with an ink outline: every other button.
+     Ink = text and outlines. Danger red = warnings, errors and "you" accents only. */
   --bg: #ffffff;
   --ink: #111111;
-  --muted: #7a7a7a;
-  --bubble: #f23b3b;
-  --table: #0a8cff;
+  --text-2: #444444;
+  --muted: #666666;
+  --primary: #0a8cff;
+  --primary-dark: #0070d6;
+  --primary-tint: #e6f3ff;
+  --primary-ink: #00549e;
+  --on-primary: #ffffff;
+  --secondary: #ffffff;
+  --danger: #f23b3b;
+  --bubble: var(--danger);
+  --table: var(--primary);
   --font: "SF Cartoonist Hand", "Comic Sans MS", "Chalkboard SE", system-ui, sans-serif;
   --serif: var(--font);
   --sans: var(--font);
-  /* Type scale: display > title > heading > body > label > caption */
+  /* Type scale (desktop): title > heading > subtitle > body > label > caption.
+     Phones get the smaller steps in the media query below. Nothing is under 14 px. */
   --t-title: 56px;
-  --t-heading: 28px;
-  --t-body: 21px;
-  --t-label: 17px;
-  --t-caption: 15px;
+  --t-heading: 32px;
+  --t-subtitle: 24px;
+  --t-body: 20px;
+  --t-label: 16px;
+  --t-caption: 14px;
 }
 
 * {
@@ -73,44 +87,84 @@ canvas#game {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Top-right controls */
+
+/*
+ * Spacing follows a 4 px grid: every padding, margin, gap, size and offset is
+ * a multiple of 4. Borders, outlines and type sizes are not spacing.
+ */
+
+/* Icons */
+.icon {
+  --icon: 24px;
+  display: inline-flex;
+  flex: none;
+  width: var(--icon);
+  height: var(--icon);
+  line-height: 0;
+}
+.icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Top bar: connection on the left, volume and close on the right */
 .controls {
   position: fixed;
   top: calc(12px + env(safe-area-inset-top));
+  left: calc(12px + env(safe-area-inset-left));
   right: calc(12px + env(safe-area-inset-right));
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
   z-index: 5;
+  pointer-events: none;
 }
 .controls[hidden] {
   display: none;
 }
+.controls-side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.controls .chip {
+  pointer-events: auto;
+}
 .chip {
   appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
   border: 2px solid var(--ink);
   background: #fff;
   color: var(--ink);
   border-radius: 999px;
-  padding: 6px 12px;
+  padding: 0 12px;
   font: 700 var(--t-label)/1 var(--font);
   cursor: pointer;
-  box-shadow: 0 2px 0 var(--ink);
+  box-shadow: 0 4px 0 var(--ink);
   transition: transform 0.08s ease, box-shadow 0.08s ease, opacity 0.2s;
-  opacity: 0.85;
+}
+.chip[hidden] {
+  display: none;
 }
 .chip:hover {
-  opacity: 1;
-  transform: translateY(-1px);
-  box-shadow: 0 3px 0 var(--ink);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 var(--ink);
 }
 .chip:active {
-  transform: translateY(1px);
-  box-shadow: 0 1px 0 var(--ink);
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 var(--ink);
 }
 .chip-icon {
-  padding: 5px 8px;
-  display: inline-flex;
-  align-items: center;
+  min-width: 44px;
+  padding: 0;
+}
+.chip-icon .icon {
+  --icon: 24px;
 }
 .chip-icon .mute-x {
   display: none;
@@ -121,18 +175,26 @@ canvas#game {
 .chip-icon[aria-pressed="true"] .mute-x {
   display: block;
 }
+.chip-static {
+  cursor: default;
+  user-select: none;
+}
+.chip-static:hover,
+.chip-static:active {
+  transform: none;
+  box-shadow: 0 4px 0 var(--ink);
+}
 
-/* Overlays */
+/* Overlays (game over, name editor) */
 .overlay {
   position: fixed;
   inset: 0;
+  overflow-y: auto;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
   background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
   z-index: 10;
   animation: overlay-in 0.25s ease both;
 }
@@ -153,16 +215,16 @@ canvas#game {
   width: min(440px, 100%);
   background: #fff;
   border: 3px solid var(--ink);
-  border-radius: 26px;
-  padding: 28px 28px 22px;
+  border-radius: 24px;
+  padding: 28px 28px 24px;
   text-align: center;
-  box-shadow: 7px 8px 0 var(--ink);
+  box-shadow: 8px 8px 0 var(--ink);
   transform: rotate(-0.6deg);
   animation: card-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 @keyframes card-in {
   from {
-    transform: rotate(-0.6deg) scale(0.9) translateY(10px);
+    transform: rotate(-0.6deg) scale(0.9) translateY(12px);
     opacity: 0;
   }
   to {
@@ -170,21 +232,15 @@ canvas#game {
     opacity: 1;
   }
 }
-.card-art {
-  height: 96px;
-  margin: -8px auto 2px;
-  display: flex;
-  justify-content: center;
-}
 .card h1 {
   font: 700 var(--t-title)/1 var(--font);
-  margin: 4px 0 6px;
+  margin: 4px 0 8px;
   letter-spacing: -0.01em;
 }
 .card .sub {
-  font: 400 var(--t-body)/1.3 var(--font);
-  color: #444;
-  margin: 0 0 18px;
+  font: 400 var(--t-body)/1.4 var(--font);
+  color: var(--text-2);
+  margin: 0 0 16px;
 }
 .card .hint {
   font: 400 var(--t-caption)/1.4 var(--font);
@@ -192,58 +248,163 @@ canvas#game {
   margin: 16px 0 0;
 }
 
-.modes {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-.mode {
-  appearance: none;
-  border: 2.5px solid var(--ink);
-  background: #fff;
-  border-radius: 16px;
-  padding: 12px 8px 10px;
-  cursor: pointer;
+/* ---- Home page ------------------------------------------------------------ */
+.home {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
   display: flex;
   flex-direction: column;
-  gap: 3px;
   align-items: center;
-  box-shadow: 0 3px 0 var(--ink);
-  transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.12s;
+  overflow-y: auto;
+  background: var(--bg);
+  text-align: center;
+  padding-top: env(safe-area-inset-top);
+}
+.home[hidden] {
+  display: none;
+}
+.home-main {
+  flex: 1 0 auto;
+  width: min(440px, 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 24px 16px;
+}
+.home-icon {
+  display: block;
+  width: 128px;
+  height: 128px;
+  margin: 0 auto 8px;
+  mix-blend-mode: multiply; /* hides the icon's off-white backdrop on the white page */
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.home h1 {
+  font: 700 var(--t-title)/1 var(--font);
+  margin: 0 0 8px;
+  letter-spacing: -0.01em;
+}
+.home .sub {
+  font: 400 var(--t-body)/1.4 var(--font);
+  color: var(--text-2);
+  margin: 0 auto 24px;
+  max-width: 400px;
+  text-wrap: balance;
+}
+
+/* Game mode dialog: three white options, each one starts the match. */
+.options {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 16px;
+  text-align: left;
+}
+.option {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 12px 16px;
+  border: 2.5px solid var(--ink);
+  border-radius: 16px;
+  background: var(--secondary);
   color: var(--ink);
+  box-shadow: 0 4px 0 var(--ink);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.12s;
 }
-.mode:hover,
-.mode:focus-visible {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 0 var(--ink);
+.option:hover,
+.option:focus-visible {
   outline: none;
+  background: var(--primary-tint);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 var(--ink);
 }
-.mode:active {
-  transform: translateY(1px);
+.option:active {
+  transform: translateY(2px);
   box-shadow: 0 2px 0 var(--ink);
 }
-.mode[data-mode="easy"]:hover {
-  background: #e9f4ff;
+.option-icon {
+  --icon: 48px;
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.mode[data-mode="medium"]:hover {
-  background: #fff3e6;
+.option:hover .option-icon,
+.option:focus-visible .option-icon {
+  transform: rotate(-8deg) scale(1.1);
 }
-.mode[data-mode="hard"]:hover {
-  background: #ffe9e9;
+.option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
-.mode-name {
-  font: 700 var(--t-heading)/1.1 var(--font);
+.option-name {
+  font: 700 var(--t-subtitle)/1.2 var(--font);
 }
-.mode-desc {
-  font: 400 var(--t-caption)/1.25 var(--font);
-  color: var(--muted);
+.option-desc {
+  font: 400 var(--t-label)/1.3 var(--font);
+  color: var(--text-2);
+}
+.dialog-card {
+  width: min(480px, 100%);
+  margin: auto;
+}
+.dialog-card .btn-quiet {
+  width: 100%;
+}
+
+/* How to play */
+.howto {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+  text-align: left;
+}
+.howto li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.howto-icon {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: var(--primary-tint);
+  color: var(--primary-ink);
+  font: 700 var(--t-label)/1 var(--font);
+}
+.howto p {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.howto strong {
+  font: 700 var(--t-body)/1.2 var(--font);
+}
+.howto span:not(.howto-icon) {
+  font: 400 var(--t-label)/1.4 var(--font);
+  color: var(--text-2);
+}
+
+.play {
+  width: 100%;
 }
 
 .actions {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 .btn {
   appearance: none;
@@ -251,41 +412,69 @@ canvas#game {
   background: #fff;
   color: var(--ink);
   border-radius: 999px;
-  padding: 10px 18px;
-  font: 700 var(--t-body)/1 var(--font);
+  padding: 12px;
+  font: 700 var(--t-body)/1.2 var(--font);
   cursor: pointer;
-  box-shadow: 0 3px 0 var(--ink);
+  box-shadow: 0 4px 0 var(--ink);
   transition: transform 0.08s ease, box-shadow 0.08s ease;
+  width: 100%;
+  white-space: nowrap;
+  text-align: center;
 }
 .btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 5px 0 var(--ink);
+  box-shadow: 0 6px 0 var(--ink);
 }
 .btn:active {
-  transform: translateY(1px);
+  transform: translateY(2px);
   box-shadow: 0 2px 0 var(--ink);
 }
 .btn.primary {
-  background: var(--bubble);
-  color: #fff;
+  background: var(--primary);
+  color: var(--on-primary);
+}
+.btn.primary:hover,
+.btn.primary:focus-visible {
+  background: var(--primary-dark);
+}
+
+/* Info badge */
+.info-badge {
+  display: inline-flex;
+  align-self: center;
+  align-items: center;
+  gap: 8px;
+  margin: 24px 0 0;
+  padding: 8px 16px;
+  background: var(--primary-tint);
+  color: var(--primary-ink);
+  border: 2px solid var(--primary-ink);
+  border-radius: 999px;
+  font: 400 var(--t-caption)/1.2 var(--font);
+  text-align: left;
 }
 
 @media (max-width: 420px) {
   .card {
-    padding: 22px 16px 18px;
-    border-radius: 22px;
+    padding: 24px 16px;
+    border-radius: 20px;
   }
-  .card h1 {
-    font-size: 40px;
+  .home-icon {
+    width: 112px;
+    height: 112px;
   }
-  .modes {
-    gap: 7px;
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .home-main {
+    padding: 16px;
   }
-  .mode-name {
-    font-size: 22px;
+  .home-icon {
+    width: 80px;
+    height: 80px;
   }
-  .mode-desc {
-    display: none;
+  .home .sub {
+    margin-bottom: 16px;
   }
 }
 
@@ -294,45 +483,164 @@ canvas#game {
   .card {
     animation: none;
   }
+  .option-icon {
+    transition: none;
+  }
+}
+/* Type scale on phones (width up to 600 px, or short landscape screens). */
+@media (max-width: 600px), (orientation: landscape) and (max-height: 520px) {
+  :root {
+    --t-title: 40px;
+    --t-heading: 28px;
+    --t-subtitle: 20px;
+    --t-body: 18px;
+  }
 }
 
-
-/* Locked difficulty label (not clickable) */
-.chip-static {
-  cursor: default;
-  opacity: 1;
-  box-shadow: 0 2px 0 var(--ink);
-  user-select: none;
+/* ---- Home top bar: the profile button opens the player picker ------------- */
+.home-top {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 12px 0;
+}
+.profile-btn {
+  gap: 8px;
+  padding: 0 16px 0 4px;
+}
+.profile-btn .profile-face {
+  background: var(--primary-tint);
+}
+.profile-btn-name {
+  max-width: 144px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chip:has(.icon[data-icon="help"]) {
+  gap: 8px;
+  padding: 0 16px 0 12px;
 }
 
-/* Info badge */
-.info-badge {
+/* ---- Avatar picker dialog ------------------------------------------------- */
+.avatars {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.avatar {
+  appearance: none;
+  padding: 8px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border: 2.5px solid var(--ink);
+  border-radius: 16px;
+  background: var(--secondary);
+  color: var(--ink);
+  box-shadow: 0 4px 0 var(--ink);
+  cursor: pointer;
+  transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.12s;
+}
+.avatar svg {
+  width: 64px;
+  height: 64px;
+  display: block;
+  overflow: visible;
+}
+.avatar-name {
+  font: 700 var(--t-label)/1.2 var(--font);
+}
+.avatar:hover,
+.avatar:focus-visible {
+  outline: none;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 var(--ink);
+}
+.avatar[aria-checked="true"] {
+  background: var(--primary-tint);
+  color: var(--primary-ink);
+  transform: translateY(2px);
+  box-shadow: inset 0 0 0 3px var(--primary), 0 2px 0 var(--ink);
+}
+.actions.single {
+  grid-template-columns: 1fr;
+  margin-top: 24px;
+}
+.dialog-card .mp-label {
+  margin: 16px 4px 8px;
+}
+.dialog-card .mp-label:first-of-type {
+  margin-top: 0;
+}
+
+/* ---- Profile bar (in a match): you and your opponent, small ---------------- */
+.profiles {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding: 0 12px;
+  pointer-events: none;
+}
+.profiles[hidden] {
+  display: none;
+}
+.profile {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin: 18px 0 0;
-  padding: 8px 14px;
-  background: #eef6ff;
-  color: #2b5f99;
-  border: 2px solid #2b5f99;
+  min-width: 0;
+  max-width: 50%;
+  height: 40px;
+  padding: 4px 16px 4px 4px;
+  border: 2px solid var(--ink);
   border-radius: 999px;
-  font: 400 var(--t-caption)/1.2 var(--font);
-  text-align: left;
+  background: var(--secondary);
 }
-.info-badge svg {
+.profile-face {
   flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary-tint);
+  overflow: hidden;
+  line-height: 0;
+}
+.profile.you .profile-face {
+  background: #ffe3e3;
+}
+.profile-face svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  transform: scale(1.1);
+}
+.profile-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 700 var(--t-label)/1 var(--font);
 }
 
-/* Equal-width action buttons */
-.actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-.actions .btn {
-  width: 100%;
-  white-space: nowrap;
-  padding-left: 12px;
-  padding-right: 12px;
-  text-align: center;
+@media (orientation: landscape) and (max-height: 520px) {
+  .avatar-card {
+    width: min(560px, 100%);
+  }
+  .avatars {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+  }
+  .avatar svg {
+    width: 48px;
+    height: 48px;
+  }
 }

@@ -12,7 +12,6 @@ export const COPY = {
   copyLink: "Copy link",
   copyCode: "Copy code",
   linkCopied: "Link copied",
-  extend: "+2 min",
   cancel: "Cancel",
   start: "Start game",
   leaveRoom: "Leave room",

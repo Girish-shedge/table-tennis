@@ -1,5 +1,6 @@
 import { COLORS, CONFIG, FONTS } from "../config";
 import type { Layout } from "./projection";
+import { fontPx } from "./sketch";
 
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 
@@ -56,7 +57,7 @@ export class Hud {
     this.drawNumeral(ctx, p, px, y, size, this.popPlayerAt, COLORS.paddleRed, now);
     this.drawNumeral(ctx, a, ax, y, size, this.popAiAt, COLORS.paddleBlue, now);
 
-    ctx.font = `700 ${Math.round(15 * s)}px ${FONTS.sans}`;
+    ctx.font = `700 ${fontPx(16, s, 14, 20)}px ${FONTS.sans}`;
     ctx.fillStyle = COLORS.muted;
     ctx.fillText(youName, px, y + 22 * s);
     ctx.fillText(themName, ax, y + 22 * s);
@@ -120,11 +121,11 @@ export class Hud {
     const a = this.flashAlpha(now);
     if (a > 0) {
       ctx.globalAlpha = a;
-      ctx.font = `700 ${Math.round(20 * s)}px ${FONTS.serif}`;
+      ctx.font = `700 ${fontPx(24, s, 16, 28)}px ${FONTS.serif}`;
       ctx.fillStyle = COLORS.bubble;
       ctx.fillText(this.flashText, x, L.captionY);
     } else {
-      ctx.font = `${Math.round(19 * s)}px ${FONTS.sans}`;
+      ctx.font = `${fontPx(20, s, 14, 24)}px ${FONTS.sans}`;
       ctx.fillStyle = COLORS.muted;
       ctx.fillText(text, x, L.captionY);
     }

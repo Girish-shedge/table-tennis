@@ -17,6 +17,10 @@ import { net } from "./net/client";
 import { OnlineMatch } from "./net/hostSim";
 import { COPY, truncateName } from "./strings";
 import { mountMultiplayer } from "./ui/screens";
+import { mountIcons } from "./ui/icons";
+import { loadName, saveName } from "./net/profile";
+import { sanitizeName } from "../shared/names";
+import { AVATARS, avatarSvg, isAvatarId, loadAvatar, saveAvatar } from "./ui/avatars";
 
 // ---- DOM ------------------------------------------------------------------
 
@@ -32,8 +36,6 @@ const modeLabel = $<HTMLSpanElement>("mode-label");
 const overTitle = $<HTMLHeadingElement>("over-title");
 const overScore = $<HTMLParagraphElement>("over-score");
 
-$("start-opponent").textContent = CONFIG.opponentName;
-$("start-score").textContent = String(CONFIG.winScore);
 $<HTMLAnchorElement>("footer-instagram").href = CONFIG.footer.instagram;
 $<HTMLAnchorElement>("footer-x").href = CONFIG.footer.x;
 $<HTMLAnchorElement>("footer-linkedin").href = CONFIG.footer.linkedin;
@@ -55,7 +57,7 @@ let drovePoint = -1;
 let shake = 0;
 let netShimmer = 0;
 
-let onEscape = () => {};
+let mpEscape = () => {};
 let online: OnlineMatch | null = null;
 let mpYou = "";
 let mpThem = "";
@@ -81,7 +83,11 @@ const input = new Input(canvas, {
     else game.primary();
   },
   onMute: () => setMuted(!audio.muted),
-  onEscape: () => onEscape(),
+  onEscape: () => {
+    if (!overlayLeave.hidden) closeLeaveBot();
+    else if (online) mpEscape();
+    else askLeaveBot();
+  },
 });
 
 // Make sure the canvas fonts are ready (canvas redraws every frame, so it picks them up).
@@ -200,19 +206,84 @@ function showMenu() {
 function startMatch(d: Difficulty) {
   audio.unlock();
   game.startMatch(d);
+  mpYou = "";
+  mpThem = "";
+  peerAvatar = "bot";
+  paintProfiles();
   modeLabel.textContent = CONFIG.difficulty[d].label;
   overlayStart.hidden = true;
   overlayOver.hidden = true;
   controls.hidden = false;
   $<HTMLButtonElement>("btn-conn").hidden = true;
-  $<HTMLButtonElement>("btn-leave").hidden = true;
+  $<HTMLButtonElement>("btn-leave").hidden = false;
   $<HTMLElement>("btn-mode").hidden = false;
   (document.activeElement as HTMLElement | null)?.blur?.();
 }
 
-for (const btn of Array.from(document.querySelectorAll<HTMLButtonElement>(".mode"))) {
-  btn.addEventListener("click", () => startMatch(btn.dataset.mode as Difficulty));
+/** Shared behaviour for the home-page dialogs: backdrop click and Esc close, keys never reach the game. */
+function wireDialog(el: HTMLElement, close: () => void) {
+  el.addEventListener("click", (e) => {
+    if (e.target === el) close();
+  });
+  el.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if (e.key === "Escape") close();
+  });
 }
+
+// "You vs Bot" opens the Game mode dialog; choosing a mode starts the match.
+const modeDialog = $<HTMLDivElement>("mode-dialog");
+const vsBotBtn = $<HTMLButtonElement>("btn-vsbot");
+function closeMode() {
+  modeDialog.hidden = true;
+  vsBotBtn.focus();
+}
+vsBotBtn.addEventListener("click", () => {
+  modeDialog.hidden = false;
+  modeDialog.querySelector<HTMLButtonElement>('.option[data-mode="medium"]')?.focus();
+});
+for (const btn of Array.from(modeDialog.querySelectorAll<HTMLButtonElement>(".option"))) {
+  btn.addEventListener("click", () => {
+    modeDialog.hidden = true;
+    startMatch(btn.dataset.mode as Difficulty);
+  });
+}
+$("mode-cancel").addEventListener("click", closeMode);
+wireDialog(modeDialog, closeMode);
+
+// How to play.
+const helpDialog = $<HTMLDivElement>("help-dialog");
+const helpBtn = $<HTMLButtonElement>("btn-help");
+function closeHelp() {
+  helpDialog.hidden = true;
+  helpBtn.focus();
+}
+helpBtn.addEventListener("click", () => {
+  helpDialog.hidden = false;
+  $("help-done").focus();
+});
+$("help-done").addEventListener("click", closeHelp);
+wireDialog(helpDialog, closeHelp);
+
+// Leaving a match against Bot: the close button (or Esc) asks first, and the game waits meanwhile.
+const overlayLeave = $<HTMLDivElement>("overlay-leave");
+function askLeaveBot() {
+  if (online || game.phase === "MENU" || !overlayStart.hidden || !overlayLeave.hidden) return;
+  dev.paused = true;
+  overlayLeave.hidden = false;
+  $("btn-stay").focus();
+}
+function closeLeaveBot() {
+  overlayLeave.hidden = true;
+  dev.paused = false;
+}
+$("btn-stay").addEventListener("click", closeLeaveBot);
+$("btn-quit").addEventListener("click", () => {
+  closeLeaveBot();
+  controls.hidden = true;
+  showMenu();
+});
+$("btn-leave").addEventListener("click", askLeaveBot);
 $("btn-again").addEventListener("click", () => startMatch(game.difficulty));
 $("btn-change").addEventListener("click", showMenu); // only reachable once a match has ended
 overlayOver.addEventListener("click", (e) => {
@@ -245,11 +316,102 @@ for (const btn of Array.from(document.querySelectorAll<HTMLButtonElement>("#emot
   });
 }
 
-$("start-hint").textContent =
-  input.kind === "touch" ? "Drag to move · Tap to serve" : "Arrow keys or drag to move · Space to serve";
 $("over-hint").textContent = input.kind === "touch" ? "Tap to play again" : "Space or tap to play again";
 
-drawCardArt();
+mountIcons();
+
+// ---- Player avatars -------------------------------------------------------
+
+let myAvatar = loadAvatar();
+let peerAvatar = "bot";
+const profiles = $<HTMLDivElement>("profiles");
+
+function paintProfiles() {
+  $("pf-you-face").innerHTML = avatarSvg(myAvatar);
+  $("pf-you-name").textContent = mpYou ? truncateName(mpYou) : CONFIG.playerName;
+  $("pf-them-face").innerHTML = avatarSvg(peerAvatar);
+  $("pf-them-name").textContent = themName();
+}
+
+function sendAvatar() {
+  // Rides on the relay's existing "emote" message (id -1 means "this is my avatar"), so no relay change is needed.
+  net.send({ t: "emote", id: -1, avatar: myAvatar });
+}
+
+net.on((msg) => {
+  if (typeof msg === "string" || msg.t !== "emote" || msg.id !== -1 || !isAvatarId(msg.avatar)) return;
+  const first = peerAvatar !== msg.avatar;
+  peerAvatar = msg.avatar;
+  paintProfiles();
+  if (first && online) sendAvatar(); // answer once, in case our first message was sent before they were ready
+});
+
+const picker = $<HTMLDivElement>("avatar-picker");
+const avatarDialog = $<HTMLDivElement>("avatar-dialog");
+const profileBtn = $<HTMLButtonElement>("btn-profile");
+function paintPicker() {
+  for (const node of Array.from(picker.querySelectorAll<HTMLButtonElement>(".avatar"))) {
+    node.setAttribute("aria-checked", String(node.dataset.id === myAvatar));
+  }
+  $("profile-btn-face").innerHTML = avatarSvg(myAvatar);
+}
+for (const a of AVATARS) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "avatar";
+  btn.dataset.id = a.id;
+  btn.setAttribute("role", "radio");
+  btn.setAttribute("aria-label", a.label);
+  btn.innerHTML = `${a.svg}<span class="avatar-name">${a.label}</span>`;
+  btn.addEventListener("click", () => {
+    myAvatar = a.id;
+    saveAvatar(a.id);
+    paintPicker();
+  });
+  picker.append(btn);
+}
+paintPicker();
+// My player: name and avatar in one dialog, opened from the chip at the top of the home page.
+const nameField = $<HTMLInputElement>("profile-name-field");
+const nameError = $<HTMLParagraphElement>("profile-name-error");
+let myName = loadName().name;
+$("profile-btn-name").textContent = myName;
+function closeAvatars() {
+  avatarDialog.hidden = true;
+  profileBtn.focus();
+}
+function saveProfile() {
+  const clean = sanitizeName(nameField.value);
+  if (!clean) {
+    nameError.textContent = COPY.nameError;
+    nameField.setAttribute("aria-invalid", "true");
+    nameField.focus();
+    return;
+  }
+  myName = clean;
+  saveName(clean);
+  $("profile-btn-name").textContent = clean;
+  mp?.setName(clean);
+  closeAvatars();
+}
+profileBtn.addEventListener("click", () => {
+  nameField.value = myName;
+  nameError.textContent = "";
+  nameField.removeAttribute("aria-invalid");
+  avatarDialog.hidden = false;
+  nameField.focus();
+  nameField.select();
+});
+$("avatar-done").addEventListener("click", saveProfile);
+nameField.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") saveProfile();
+});
+wireDialog(avatarDialog, closeAvatars);
+
+// The profile bar follows the top bar: visible during a match, hidden on the home page.
+new MutationObserver(() => {
+  profiles.hidden = controls.hidden;
+}).observe(controls, { attributes: true, attributeFilter: ["hidden"] });
 
 const mp = mountMultiplayer({
   unlock: () => audio.unlock(),
@@ -259,6 +421,9 @@ const mp = mountMultiplayer({
     controls.hidden = false;
     mpYou = session.myName;
     mpThem = session.peerName || "Friend";
+    peerAvatar = "bot";
+    paintProfiles();
+    sendAvatar();
     online?.stop();
     $("emotes").hidden = false;
     void lockWake();
@@ -278,15 +443,19 @@ const mp = mountMultiplayer({
     online = null;
     mpYou = "";
     mpThem = "";
+    peerAvatar = "bot";
     controls.hidden = true;
     $("emotes").hidden = true;
     unlockWake();
     showMenu();
   },
   setEscape: (fn) => {
-    onEscape = fn;
+    mpEscape = fn;
   },
 });
+
+// The multiplayer screens may already have set the name (they own the default "Player NNN").
+myName = $("profile-btn-name").textContent || myName;
 
 const dev = { paused: false };
 if (import.meta.env.DEV) {
@@ -344,10 +513,6 @@ function render() {
     character.draw(ctx, P, ballScreen);
     const ba = character.bubbleAnchor(P);
     bubble.draw(ctx, game.now, ba.x, ba.y, s);
-
-    // 3. Opponent paddle.
-    drawPaddleShadow(ctx, P, game.aiPaddle, AI_STYLE);
-    drawPaddle(ctx, P, game.aiPaddle, AI_STYLE);
   }
 
   // A ball that has dropped below the table behind its far end is hidden by the table.
@@ -359,6 +524,12 @@ function render() {
 
   // 4. Table.
   drawTable(ctx, P, s);
+
+  // 4b. Opponent paddle, drawn on top of the table so its shadow and handle are never cut off by the far edge.
+  if (game.phase !== "MENU") {
+    drawPaddleShadow(ctx, P, game.aiPaddle, AI_STYLE);
+    drawPaddle(ctx, P, game.aiPaddle, AI_STYLE);
+  }
 
   if (game.phase !== "MENU" && !behindTable) {
     const ball = game.ball;
@@ -504,31 +675,3 @@ document.addEventListener("visibilitychange", () => {
     }
   }
 });
-
-// ---- Start-screen art -----------------------------------------------------
-
-function drawCardArt() {
-  const c = document.getElementById("card-art") as HTMLCanvasElement | null;
-  if (!c) return;
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const w = 170;
-  const h = 120;
-  c.width = w * dpr;
-  c.height = h * dpr;
-  c.style.width = `${w}px`;
-  c.style.height = `${h}px`;
-  const g = c.getContext("2d")!;
-  g.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-  // A flat stand-in projection so the paddle renderer can be reused.
-  const S = 175;
-  const flat = Object.create(Projection.prototype) as Projection;
-  flat.scaleAt = () => S;
-  flat.project = (x: number, y: number, _z: number) => ({ x: w / 2 + x * S, y: 38 - y * S, scale: S });
-
-  // Two bats crossed in an X: red and blue.
-  const blue = { ...AI_STYLE, artScale: 1 };
-  const bat = (x: number, tilt: number) => ({ pos: { x, y: 0, z: 0 }, target: { x: 0, z: 0 }, vel: { x: 0, z: 0 }, tilt, squash: 0 });
-  drawPaddle(g, flat, bat(0.2, 1.0), blue);
-  drawPaddle(g, flat, bat(-0.2, -1.0), PLAYER_STYLE);
-}
