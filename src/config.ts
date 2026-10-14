@@ -1,3 +1,26 @@
+import {
+  BOTH_DROPPED_WINDOW_MS,
+  EXTEND_MS,
+  HEARTBEAT_MS,
+  INPUT_HZ,
+  INPUT_KEEPALIVE_HZ,
+  INTERP_DELAY_MS,
+  JOIN_WINDOW_MS,
+  LABEL_MAX_CHARS,
+  LOBBY_INACTIVITY_MS,
+  MAX_EXTRAPOLATE_MS,
+  MAX_HIT_FORGIVENESS_MS,
+  MAX_NAME_LENGTH,
+  PROTOCOL_VERSION,
+  RECONNECT_WINDOW_MS,
+  REMATCH_TIMEOUT_MS,
+  ROOM_CODE_ALPHABET,
+  ROOM_CODE_LENGTH,
+  SERVE_TIMER_MS,
+  SNAPSHOT_HZ,
+  TIMEOUT_MS,
+} from "../shared/constants";
+
 export type Difficulty = "easy" | "medium" | "hard";
 
 export interface DifficultyParams {
@@ -111,6 +134,34 @@ export const CONFIG = {
       hitBonus: 0.04,
     },
   } as Record<Difficulty, DifficultyParams>,
+};
+
+export const NET = {
+  protocolVersion: PROTOCOL_VERSION,
+  relayUrl: import.meta.env.VITE_RELAY_URL ?? "",
+  roomCodeLength: ROOM_CODE_LENGTH,
+  roomCodeAlphabet: ROOM_CODE_ALPHABET,
+  joinWindowMs: JOIN_WINDOW_MS,
+  extendMs: EXTEND_MS,
+  maxExtensions: 1,
+  lobbyInactivityMs: LOBBY_INACTIVITY_MS,
+  reconnectWindowMs: RECONNECT_WINDOW_MS,
+  bothDroppedWindowMs: BOTH_DROPPED_WINDOW_MS,
+  rematchTimeoutMs: REMATCH_TIMEOUT_MS,
+  serveTimerMs: SERVE_TIMER_MS,
+  snapshotHz: SNAPSHOT_HZ,
+  inputHz: INPUT_HZ,
+  inputKeepAliveHz: INPUT_KEEPALIVE_HZ,
+  heartbeatMs: HEARTBEAT_MS,
+  timeoutMs: TIMEOUT_MS,
+  interpDelayMs: INTERP_DELAY_MS,
+  maxExtrapolateMs: MAX_EXTRAPOLATE_MS,
+  maxHitForgivenessMs: MAX_HIT_FORGIVENESS_MS,
+  weakPingMs: 250,
+  weakPingSeconds: 5,
+  hostLowFps: 30,
+  maxNameLength: MAX_NAME_LENGTH,
+  labelMaxChars: LABEL_MAX_CHARS,
 };
 
 export const COLORS = {
