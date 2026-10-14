@@ -8,7 +8,7 @@ export const COPY = {
   hostDesc: "Get a code and share the invite.",
   join: "Join with code",
   joinDesc: "Type the 4 letters from your friend.",
-  netLabel: "Your network:",
+  netLabel: "Signal strength:",
   netChecking: "Checking…",
   netGood: "Good",
   netOkay: "Okay",

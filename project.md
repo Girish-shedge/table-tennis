@@ -15,15 +15,15 @@ This is the single source of truth for the project. It started as the build brie
 
 | | |
 |---|---|
-| **Status** | v2.1 live (15 Oct 2026): shot power, serve preview, a steadier Bot and UI polish (§30.4) on top of v2.0 online multiplayer (Part 2). Real-device test (S-1) and edge-case sweep (S-2) still to do |
+| **Status** | v2.2 live (15 Oct 2026): rally power holds until your hit, Play with a friend dialog, signal strength on the home page and 12-character names, on top of v2.1 (shot power, serve preview, steadier Bot, §30.4) and v2.0 online multiplayer (Part 2). Real-device test (S-1) and edge-case sweep (S-2) still to do |
 | **Live game** | [tabel-tennis.vercel.app](https://tabel-tennis.vercel.app) |
 | **Other live URLs** | [table-tennis-alpha-jet.vercel.app](https://table-tennis-alpha-jet.vercel.app) (original Vercel address, still works) |
 | **Source code** | [github.com/Girish-shedge/table-tennis](https://github.com/Girish-shedge/table-tennis) (public, branch `main`) |
 | **Hosting** | Vercel, connected to GitHub. Every push to `main` deploys to production automatically. |
 | **Multiplayer relay** | Cloudflare Worker `tt-relay` at `https://tt-relay.girish-tt.workers.dev` (code in `server/`, deployed with `wrangler`). The client uses `wss://tt-relay.girish-tt.workers.dev`, set as `VITE_RELAY_URL` in Vercel (Production only) |
-| **Branches** | Work happens on `multiplayer` and is fast-forward merged into `main` to ship (14 Oct 2026 for v2.0, 15 Oct 2026 for v2.1). Start new work on a branch |
+| **Branches** | Work happens on `multiplayer` and is fast-forward merged into `main` to ship (14 Oct 2026 for v2.0, 15 Oct 2026 for v2.1 and v2.2). Start new work on a branch |
 | **Models used** | Day 1 multiplayer (frontend + backend): Grok. Day 2 (design): Claude Sonnet |
-| **Bundle size** | About 21 KB of gzipped JavaScript, 5.7 KB of CSS and 2.8 KB of HTML in v2.1 (target is under 150 KB). vs-Bot alone was 12.7 KB |
+| **Bundle size** | About 21 KB of gzipped JavaScript, 5.8 KB of CSS and 3.1 KB of HTML in v2.2 (target is under 150 KB). vs-Bot alone was 12.7 KB |
 
 Note: `table-tennis.vercel.app` is owned by another Vercel account, so the custom address uses the spelling `tabel-tennis`.
 
@@ -513,6 +513,12 @@ Built on `multiplayer` and fast-forward merged into `main`. Details in §30.4.
 - **UI:** bigger scoreboard; 48 px buttons with 18 px text and a press-and-spring tap effect; stacked two-button modals; Host lobby laid out like Join; Back home replaces Play vs Bot; Leave is a secondary button; 8 px spacing grid.
 - **Fixes:** text selection on phone taps, the frozen loader ball with Reduce Motion, the palm on the red paddle, and "null left the game".
 
+### v2.2 — Friend dialog, signal strength, rally power fix (15 Oct 2026)
+Built on `multiplayer` and fast-forward merged into `main`. Details in §6.7, §20.2 and §30.4.
+- **Rally power holds:** charged power stays until your hit, so moving forward to the ball no longer drains it; ↑ no longer empties the bar.
+- **Home page:** You vs Bot, then "or", then **Play with a friend**, which opens a dialog with Host a game (paddle with a + badge) and Join with code (key). Below it, **Signal strength: Good / Okay / Weak / Offline** (text only), timed against the relay.
+- **Names:** 1 to 12 characters with a live counter; longer saved names are shortened on load.
+
 ---
 
 ## 13. Acceptance Criteria
@@ -720,7 +726,7 @@ Keep everything that exists: the crossed-bats icon, the title **Table Tennis**, 
 
 *Current layout (15 Oct 2026):* **You vs Bot** (primary), a divider reading "or", then one white **Play with a friend** button. It opens a **Play with a friend** dialog with two option cards, **Host a game** (red paddle with a blue + badge) and **Join with code** (blue key), plus Cancel. Choosing one closes the dialog and starts the usual host or join flow (S02 or S05). Esc, Cancel or a tap outside closes it. The whole friend entry is still hidden without a relay (E-50). The name now lives in the **My player** button (§30.2).
 
-Under Play with a friend, a small line reads **Your network: Good / Okay / Weak, online play may lag / Offline**, as text only: the word is green for Good and red for Weak or Offline (`src/ui/netStatus.ts`). It times a `GET /` to the relay: the Worker answers that itself, with no room and no rate limit. The first request after loading (DNS and TLS) is thrown away, then the median of the last three samples is used, with the chip's bands: under 200 ms Good, up to 450 ms Okay, above that Weak. No answer within 3 s, or the browser being offline, shows Offline. It only measures while the home page is on screen: once on load, then one request every 30 s, and again when the tab or the home page comes back. Hovering the line shows the time in ms.
+Under Play with a friend, a small line reads **Signal strength: Good / Okay / Weak, online play may lag / Offline**, as text only: the word is green for Good and red for Weak or Offline (`src/ui/netStatus.ts`). It times a `GET /` to the relay: the Worker answers that itself, with no room and no rate limit. The first request after loading (DNS and TLS) is thrown away, then the median of the last three samples is used, with the chip's bands: under 200 ms Good, up to 450 ms Okay, above that Weak. No answer within 3 s, or the browser being offline, shows Offline. It only measures while the home page is on screen: once on load, then one request every 30 s, and again when the tab or the home page comes back. Hovering the line shows the time in ms.
 
 ### 20.3 Top-corner controls in a match (MP addition)
 
@@ -1164,7 +1170,7 @@ IDs are used by the tests and the sweep in §24.5.
 - Set `VITE_RELAY_URL` in Vercel for **Preview** and **Production** (⚠️ Y-3). Without it the MP buttons stay hidden (E-50).
 - Merge to `main` only when the QA gate in §24.5 is green.
 - *Update 14 Oct 2026:* `multiplayer` was merged into `main` at Girish's request before S-1 and S-2, so the device test happens on production. `VITE_RELAY_URL` is currently set for **Production** only. For new work, branch from `main` again and add the preview variable if you want MP on preview URLs. Preview URLs are also not in the Worker's `ALLOWED_ORIGINS`, so add them there (in `server/wrangler.toml`, then redeploy) to test MP on a preview.
-- *Update 15 Oct 2026:* v2.1 was shipped the same way: committed on `multiplayer`, then `main` was fast-forwarded to it and pushed. The relay did not change, so no `wrangler deploy` was needed.
+- *Update 15 Oct 2026:* v2.1 was shipped the same way: committed on `multiplayer`, then `main` was fast-forwarded to it and pushed. The relay did not change, so no `wrangler deploy` was needed. v2.2 shipped the same way. Its shared name limit (12) only reaches the relay at its next `wrangler deploy`; until then the relay accepts up to 16, which is harmless.
 
 ### 24.2 Prompt template for every Cursor chat
 
@@ -1483,6 +1489,7 @@ These were found during the Day 2 design pass, which wasn't allowed to change lo
 - **Loader ball:** the bouncing ball in the Host and Reconnecting screens was frozen on phones with Reduce Motion turned on. It now always plays a gentle hop.
 - **Spacing** is on an 8 px grid. 4 px is used only as a half step inside small parts (badges, gaps between label lines).
 - **Home page friend entry:** You vs Bot, then "or", then **Play with a friend**, which opens a dialog with Host a game and Join with code (§20.2). The host and join flows are unchanged.
-- **Network strength on the home page:** "Your network: Good / Okay / Weak / Offline" under Play with a friend (§20.2).
+- **Signal strength on the home page:** "Signal strength: Good / Okay / Weak / Offline", as text only, under Play with a friend (§20.2).
+- **Play with a friend dialog icons:** Host a game is a red paddle with a blue "+" badge; Join with code is a blue key.
 - **Names are 1 to 12 characters** (`MAX_NAME_LENGTH` in `shared/constants.ts`, was 16). The My player field stops at 12 and shows a live "8/12" counter. A longer name saved earlier is shortened to 12 on load instead of being reset. The deployed relay still accepts up to 16 until it's next redeployed; that's harmless because clients now send at most 12.
 - **Rally power fix (v2.1.1):** charged power now holds until your hit. Moving forward to the ball no longer drains it, and ↑ no longer empties the bar (§6.7).

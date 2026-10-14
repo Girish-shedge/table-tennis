@@ -51,7 +51,7 @@
   border-radius: 2px;
   background: var(--mp-line);
 }
-/* "Your network: Good" under Play with a friend. Text only; the word carries the colour. */
+/* "Signal strength: Good" under Play with a friend. Text only; the word carries the colour. */
 .net-status {
   display: flex;
   justify-content: center;

@@ -2,7 +2,7 @@ import { pingRelay } from "../net/api";
 import { COPY } from "../strings";
 
 /**
- * "Your network: Good" (text only) under Play with a friend. Times round trips to the relay and uses the
+ * "Signal strength: Good" (text only) under Play with a friend. Times round trips to the relay and uses the
  * same bands as the in-match connection chip (under 200 ms good, up to 450 ms okay, above that weak).
  * It only measures while the home page is on screen, so an idle tab costs one request every 30 s.
  */
