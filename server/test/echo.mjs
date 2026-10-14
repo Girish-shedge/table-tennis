@@ -1,4 +1,4 @@
-const url = process.env.RELAY_URL ?? "ws://127.0.0.1:8787/ws";
+const url = process.env.RELAY_URL ?? "ws://127.0.0.1:8787/debug/echo";
 const ws = new WebSocket(url);
 const timer = setTimeout(() => {
   console.error("timeout waiting for echo");
