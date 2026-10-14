@@ -170,8 +170,8 @@ export function reduceSession(s: Session, e: SessionEvent): Session {
     case "confirmLeave":
       return { ...initialSession(s.myName, s.nameSaved), message: null };
     case "peerLeft":
-      if (s.screen === "match" || s.screen === "countdown" || s.screen === "reconnect") {
-        return message({ ...s, peerName: e.name }, e.why === "forfeit" ? "friendLeft" : "friendEnded");
+      if (s.screen === "match" || s.screen === "countdown" || s.screen === "reconnect" || s.screen === "result" || s.screen === "rematch") {
+        return message({ ...s, peerName: e.name }, e.why === "forfeit" || s.screen === "result" ? "friendLeft" : "friendEnded");
       }
       if (s.screen === "hostReady") return { ...s, screen: "hostLobby", peerName: null };
       if (s.screen === "guestLobby" || s.screen === "hostLobby") return message(s, "friendEnded");

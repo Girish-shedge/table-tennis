@@ -85,6 +85,20 @@ describe("session flows §4.6", () => {
     expect(again.you).toBe(0);
   });
 
+  it("a friend leaving the result tells you they left", () => {
+    const over = play([
+      { type: "host" },
+      { type: "created", code: "KTQR", token: "t", playerId: "p" },
+      { type: "peerJoined", name: "Ravi" },
+      { type: "start" },
+      { type: "countdownDone" },
+      { type: "matchOver", youWon: true, you: 11, them: 7 },
+      { type: "peerLeft", name: "Ravi", why: "left" },
+    ]);
+    expect(over.screen).toBe("message");
+    expect(over.message).toBe("friendLeft");
+  });
+
   it("a rematch request expires back to the result", () => {
     const waiting = play([
       { type: "host" },

@@ -79,6 +79,7 @@ export function mountMultiplayer(hooks: ScreenHooks) {
   }
 
   function goMatch() {
+    if (session.screen === "match") return;
     playing = true;
     window.clearInterval(countdownTimer);
     dispatch({ type: "countdownDone" });
@@ -116,6 +117,11 @@ export function mountMultiplayer(hooks: ScreenHooks) {
         playing = true;
         hooks.onMatch(session);
       }
+    }
+    if (msg.t === "rematch_request") dispatch({ type: "peerRematch" });
+    if (msg.t === "rematch_accept") {
+      dispatch({ type: "acceptRematch" });
+      if (session.screen === "countdown") beginCountdown(session.role === "host");
     }
     if (msg.t === "error" && msg.error === "DUPLICATE_TAB") dispatch({ type: "roomClosed", message: "duplicate" });
     if (msg.t === "socket_closed") {

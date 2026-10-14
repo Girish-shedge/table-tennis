@@ -213,6 +213,7 @@ for (const btn of Array.from(document.querySelectorAll<HTMLButtonElement>(".mode
 $("btn-again").addEventListener("click", () => startMatch(game.difficulty));
 $("btn-change").addEventListener("click", showMenu); // only reachable once a match has ended
 overlayOver.addEventListener("click", (e) => {
+  if (game.externalSim) return;
   // Tap anywhere outside the buttons to play again.
   if (!(e.target instanceof HTMLElement && e.target.closest("button"))) startMatch(game.difficulty);
 });
@@ -259,6 +260,7 @@ const mp = mountMultiplayer({
     $("emotes").hidden = false;
     void lockWake();
     online = new OnlineMatch(game, net, session.role === "guest" ? "guest" : "host", (youWon, you, them) => {
+      if (online) online.paused = true;
       mp?.noteResult(youWon, you, them);
     }, {
       onGuestEvent: (e) => game.emitMp(e),
