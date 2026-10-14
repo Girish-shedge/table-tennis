@@ -1,6 +1,7 @@
 import { CONFIG, type Difficulty } from "../config";
-import { clamp, damp, gaussian } from "../render/sketch";
+import { clamp, gaussian } from "../render/sketch";
 import { AI } from "./ai";
+import { AIController, LocalInput } from "./controllers";
 import {
   makeBall,
   makePaddle,
@@ -42,6 +43,9 @@ export class Game {
   ball: Ball = makeBall();
   player: Paddle = makePaddle(0, CONFIG.paddleHover, 0.35);
   ai: AI = new AI("medium");
+  /** Same Bot instance as `ai`. vs-Bot never swaps this out. */
+  private aiController = new AIController(this.ai);
+  private local = new LocalInput();
   aiPaddle: Paddle = makePaddle(0, CONFIG.aiPaddleHover, CONFIG.aiPaddleZ);
 
   /** Simulation clock in ms. */
@@ -169,9 +173,13 @@ export class Game {
     this.updatePlayerPaddle(dt);
 
     const b = this.ball;
-    const incoming = this.phase === "RALLY" && b.lastHitter === "player";
-    if (incoming) this.ai.onIncoming(this.hitCounter, this.now, b, this.aiPaddle);
-    this.ai.update(this.aiPaddle, b, incoming, this.now, dt);
+    this.aiController.apply(this.aiPaddle, {
+      dt,
+      now: this.now,
+      phase: this.phase,
+      ball: b,
+      hitCounter: this.hitCounter,
+    });
 
     switch (this.phase) {
       case "SERVE":
@@ -203,26 +211,9 @@ export class Game {
   }
 
   private updatePlayerPaddle(dt: number) {
-    const p = this.player;
-    if (this.dragTarget) {
-      p.target.x = this.dragTarget.x;
-      p.target.z = this.dragTarget.z;
-    } else {
-      p.target.x += this.keyAxis.x * CONFIG.paddleKeySpeedX * dt;
-      p.target.z += this.keyAxis.z * CONFIG.paddleKeySpeedZ * dt;
-    }
-    const xMax = CONFIG.tableW / 2 + CONFIG.paddleXMargin;
-    p.target.x = clamp(p.target.x, -xMax, xMax);
-    p.target.z = clamp(p.target.z, CONFIG.paddleZMin, CONFIG.paddleZMax);
-
-    const px = p.pos.x;
-    const pz = p.pos.z;
-    p.pos.x = damp(p.pos.x, p.target.x, CONFIG.paddleSmooth, dt);
-    p.pos.z = damp(p.pos.z, p.target.z, CONFIG.paddleSmooth, dt);
-    p.vel.x = (p.pos.x - px) / dt;
-    p.vel.z = (p.pos.z - pz) / dt;
-    p.tilt = damp(p.tilt, clamp(p.vel.x * 0.35, -0.45, 0.45), 0.08, dt);
-    p.squash = Math.max(0, p.squash - dt * 6);
+    this.local.dragTarget = this.dragTarget;
+    this.local.keyAxis = this.keyAxis;
+    this.local.apply(this.player, dt);
   }
 
   private stepRally(dt: number) {
