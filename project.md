@@ -720,6 +720,8 @@ Keep everything that exists: the crossed-bats icon, the title **Table Tennis**, 
 
 *Current layout (15 Oct 2026):* **You vs Bot** (primary), a divider reading "or", then one white **Play with a friend** button. It opens a **Play with a friend** dialog with two option cards, **Host a game** (paper-plane icon) and **Join with code** (code-tile icon), plus Cancel. Choosing one closes the dialog and starts the usual host or join flow (S02 or S05). Esc, Cancel or a tap outside closes it. The whole friend entry is still hidden without a relay (E-50). The name now lives in the **My player** button (§30.2).
 
+Under Play with a friend, a small line reads **Your network: Good / Okay / Weak, online play may lag / Offline**, with the same signal bars as the in-match connection chip (`src/ui/netStatus.ts`). It times a `GET /` to the relay: the Worker answers that itself, with no room and no rate limit. The first request after loading (DNS and TLS) is thrown away, then the median of the last three samples is used, with the chip's bands: under 200 ms Good, up to 450 ms Okay, above that Weak. No answer within 3 s, or the browser being offline, shows Offline. It only measures while the home page is on screen: once on load, then one request every 30 s, and again when the tab or the home page comes back. Hovering the line shows the time in ms.
+
 ### 20.3 Top-corner controls in a match (MP addition)
 
 Single-player shows a static mode chip and a mute button. In multiplayer:
@@ -961,7 +963,7 @@ Errors return `{error: "ROOM_NOT_FOUND" | "ROOM_FULL" | "ROOM_EXPIRED" | "VERSIO
 - `wss://` only. The Worker checks the `Origin` header against an allowlist from the `ALLOWED_ORIGINS` environment variable. It must include `https://tabel-tennis.vercel.app`, `https://table-tennis-alpha-jet.vercel.app`, the Vercel preview URLs for this repo, and `http://localhost:5173` for development.
 - Max 2 players per room, 2 KB message cap, per-socket message rate limit, per-IP limits on creating rooms (about 5 a minute) and looking up codes (about 20 a minute).
 - The host clamps all guest input to table bounds and a maximum speed.
-- Names: trim, 1–16 characters, strip control characters, optional small blocklist (Y-13), shown with `textContent` only (never `innerHTML`).
+- Names: trim, 1–12 characters (16 before 15 Oct 2026), strip control characters, optional small blocklist (Y-13), shown with `textContent` only (never `innerHTML`).
 - No accounts, no analytics, no personal data stored. **The repo is public, so no secrets are ever committed.** Ignore `.dev.vars` and `.wrangler/`. The only credential is your Cloudflare login, done through `wrangler login`.
 
 ### 22.9 Cost (free tier)
@@ -1005,7 +1007,7 @@ export const NET = {
   weakPingSeconds: 5,
   hostLowFps: 30,
 
-  maxNameLength: 16,
+  maxNameLength: 12,
   labelMaxChars: 10,
 };
 ```
@@ -1137,7 +1139,7 @@ IDs are used by the tests and the sweep in §24.5.
 | E-43 | Message flooding or giant messages | Per-socket rate limit and 2 KB cap, then the socket is closed |
 | E-44 | The free daily limit is reached | "Online play is resting". Resets at 00:00 UTC (5:30 AM IST). vs-Bot always works |
 | E-45 | Player has an old cached version | The `v` field triggers "A new version is available" |
-| E-46 | Offensive or empty names | Trim, 1–16 characters, strip control characters, optional blocklist. `textContent` only |
+| E-46 | Offensive or empty names | Trim, 1–12 characters, strip control characters, optional blocklist. `textContent` only |
 | E-47 | Two players with the same name | The guest becomes "Name (2)" |
 | E-48 | Typing characters that aren't in codes | A gentle hint: "Codes use letters only (no I, L or O)" |
 
@@ -1481,4 +1483,6 @@ These were found during the Day 2 design pass, which wasn't allowed to change lo
 - **Loader ball:** the bouncing ball in the Host and Reconnecting screens was frozen on phones with Reduce Motion turned on. It now always plays a gentle hop.
 - **Spacing** is on an 8 px grid. 4 px is used only as a half step inside small parts (badges, gaps between label lines).
 - **Home page friend entry:** You vs Bot, then "or", then **Play with a friend**, which opens a dialog with Host a game and Join with code (§20.2). The host and join flows are unchanged.
+- **Network strength on the home page:** "Your network: Good / Okay / Weak / Offline" under Play with a friend (§20.2).
+- **Names are 1 to 12 characters** (`MAX_NAME_LENGTH` in `shared/constants.ts`, was 16). The My player field stops at 12 and shows a live "8/12" counter. A longer name saved earlier is shortened to 12 on load instead of being reset. The deployed relay still accepts up to 16 until it's next redeployed; that's harmless because clients now send at most 12.
 - **Rally power fix (v2.1.1):** charged power now holds until your hit. Moving forward to the ball no longer drains it, and ↑ no longer empties the bar (§6.7).

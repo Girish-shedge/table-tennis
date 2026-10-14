@@ -27,7 +27,7 @@ export const MAX_INTERP_DELAY_MS = 260;
 export const MAX_EXTRAPOLATE_MS = 160;
 export const MAX_HIT_FORGIVENESS_MS = 120;
 
-export const MAX_NAME_LENGTH = 16;
+export const MAX_NAME_LENGTH = 12;
 export const LABEL_MAX_CHARS = 10;
 export const MAX_MESSAGE_BYTES = 2048;
 

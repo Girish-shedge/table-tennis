@@ -1,4 +1,4 @@
-import { isRoomCode, ROOM_CODE_ALPHABET } from "../../../shared/constants";
+import { isRoomCode, MAX_NAME_LENGTH, ROOM_CODE_ALPHABET } from "../../../shared/constants";
 import { sanitizeName } from "../../../shared/names";
 import { NET } from "../../config";
 import { ApiError, createRoom, joinRoom, previewRoom, wsUrl } from "../../net/api";
@@ -8,6 +8,7 @@ import { clearSession, loadName, loadSession, saveName, saveSession, tabClaim } 
 import { initialSession, reduceSession, type Session, type SessionEvent } from "../../net/session";
 import { COPY, truncateName, type MessageKey } from "../../strings";
 import { mountConnChip } from "../conn";
+import { mountNetStatus } from "../netStatus";
 import { showToast } from "../toast";
 import { iconNode } from "../icons";
 import { avatarSvg } from "../avatars";
@@ -64,6 +65,7 @@ export function mountMultiplayer(hooks: ScreenHooks) {
   };
   setName(session.myName);
   mountConnChip();
+  mountNetStatus(NET.relayUrl);
   let lastScreen = session.screen;
   let said = "";
   let lastLeft = Infinity;
@@ -487,7 +489,7 @@ export function mountMultiplayer(hooks: ScreenHooks) {
     if (s.screen === "invite") {
       card.append(el("h1", { class: "mp-h" }, `${s.hostName} invited you to play`));
       card.append(el("label", { class: "mp-label", for: "mp-name-input" }, COPY.yourName));
-      const input = typing(el("input", { id: "mp-name-input", class: "mp-field", "data-testid": "invite-name", value: s.myName, maxlength: "16", autocomplete: "off", spellcheck: "false" })) as HTMLInputElement;
+      const input = typing(el("input", { id: "mp-name-input", class: "mp-field", "data-testid": "invite-name", value: s.myName, maxlength: String(MAX_NAME_LENGTH), autocomplete: "off", spellcheck: "false" })) as HTMLInputElement;
       input.value = s.myName;
       const go = () => {
         const clean = sanitizeName(input.value) || s.myName;

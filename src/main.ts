@@ -408,8 +408,14 @@ function saveProfile() {
   mp?.setName(clean);
   closeAvatars();
 }
+const nameCount = $("profile-name-count");
+const paintNameCount = () => {
+  nameCount.textContent = `${nameField.value.length}/${nameField.maxLength}`;
+};
+nameField.addEventListener("input", paintNameCount);
 profileBtn.addEventListener("click", () => {
   nameField.value = myName;
+  paintNameCount();
   nameError.textContent = "";
   nameField.removeAttribute("aria-invalid");
   avatarDialog.hidden = false;

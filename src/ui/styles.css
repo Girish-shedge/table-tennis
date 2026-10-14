@@ -602,6 +602,11 @@ canvas#game {
 .dialog-card .mp-label:first-of-type {
   margin-top: 0;
 }
+.name-count {
+  float: right;
+  font: 400 var(--t-caption)/1 var(--font);
+  color: var(--text-2);
+}
 
 /* ---- Power bar (in a match, bottom centre) ---------------------------------
    A status readout, not a button: ink outline, no hard shadow. The gradient is fixed to the

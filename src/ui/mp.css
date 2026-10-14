@@ -51,6 +51,41 @@
   border-radius: 2px;
   background: var(--mp-line);
 }
+/* "Your network: Good" under Play with a friend. Same bars as the in-match connection chip. */
+.net-status {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 0;
+  font: 400 var(--t-caption)/1 var(--font);
+  color: var(--text-2);
+}
+.net-status[hidden] {
+  display: none;
+}
+.net-status b {
+  font-weight: 700;
+  color: var(--ink);
+}
+.net-status .bars .bar {
+  fill: var(--success);
+  stroke: var(--ink);
+  stroke-width: 1.6;
+}
+.net-status .bars[data-bars="0"] .bar {
+  fill: #fff;
+}
+.net-status[data-level="weak"] .bars .b1 {
+  fill: var(--danger);
+}
+.net-status[data-level="good"] b {
+  color: var(--success-ink);
+}
+.net-status[data-level="weak"] b,
+.net-status[data-level="offline"] b {
+  color: var(--danger-ink);
+}
 .mp-name {
   margin: 8px 0 0;
   display: flex;

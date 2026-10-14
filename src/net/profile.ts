@@ -1,3 +1,4 @@
+import { MAX_NAME_LENGTH } from "../../shared/constants";
 import { sanitizeName } from "../../shared/names";
 
 export interface SavedSession {
@@ -39,7 +40,8 @@ export function loadName(): { name: string; saved: boolean } {
   const box = store("local");
   if (!box) return { name: memoryName(), saved: false };
   const raw = box.getItem(NAME_KEY);
-  const name = sanitizeName(raw ?? "");
+  // Names saved before the limit dropped to 12 are shortened, not thrown away.
+  const name = sanitizeName((raw ?? "").trim().slice(0, MAX_NAME_LENGTH));
   if (!name) return { name: memoryName(), saved: false };
   return { name, saved: true };
 }
