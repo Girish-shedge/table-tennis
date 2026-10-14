@@ -8,12 +8,13 @@ Host a game and share a link or a 4-letter code. A friend joins on desktop or ph
 
 | | |
 |---|---|
-| **Status** | Draft, ready to build |
+| **Status** | **Built and live in production (14 Oct 2026).** Day 1 and Day 2 complete. Real-device test (S-1) and edge-case sweep (S-2) still to do. See §13 for the current state and known gaps |
 | **Owner** | Girish |
 | **Game** | [tabel-tennis.vercel.app](https://tabel-tennis.vercel.app) (repo: [Girish-shedge/table-tennis](https://github.com/Girish-shedge/table-tennis)) |
-| **Companion file** | `TT game project.md` (single-player game and shared engine, v1.2) |
-| **Replaces** | `multiplayer.md` and `multiplayer-build.md`. **Delete both from the repo** once this file is in, so nothing clashes |
-| **Work branch** | `multiplayer` (never build on `main`, see §8.1) |
+| **Relay** | Cloudflare Worker `tt-relay` at `https://tt-relay.girish-tt.workers.dev` (client uses `wss://tt-relay.girish-tt.workers.dev`) |
+| **Companion file** | `TT game project.md` (single-player game and shared engine, v2.0) |
+| **Replaces** | `multiplayer.md` and `multiplayer-build.md` (both deleted) |
+| **Branches** | Built on `multiplayer`, fast-forward merged into `main` on 14 Oct 2026 (commit `2a5efb0`). New work should again start on a branch, see §8.1 |
 | **Models** | Day 1 (frontend + backend): **Grok**. Day 2 (design): **Claude Sonnet** |
 
 ### 0.1 Which file owns what
@@ -449,13 +450,29 @@ Values used by the server (timers, limits, alphabet, protocol version) also live
 
 ```
 ./
+├─ design.html             # dev-only component sheet (/design.html), not in the production build
+├─ playwright.config.ts    # two-client end-to-end test setup (expects Vite on :5173 and the relay on :8787)
+├─ .env.development        # VITE_RELAY_URL=http://127.0.0.1:8787 for local dev
+├─ scripts/
+│  ├─ design-shots.mjs     # npm run qa:shots -- <tag>: every MP screen at 360, 768, 1280 and phone landscape
+│  └─ a11y-check.mjs       # npm run qa:a11y: touch targets, focus ring, reduced motion, aria-live
+├─ tests/
+│  ├─ session.test.ts      # session state machine
+│  ├─ net.test.ts          # mirror, interpolation, codes, clamping
+│  ├─ bot-golden.test.ts   # seeded vs-Bot simulation must match a fixed hash
+│  ├─ bot-sim.ts           # headless sim used by the golden test
+│  └─ e2e/match.spec.ts    # two browser contexts: host, join, play to 11, rematch, leave, invite link
 ├─ shared/
 │  ├─ protocol.ts          # message types and validators (client + server)
-│  └─ constants.ts         # timers, limits, alphabet, protocol version
+│  ├─ constants.ts         # timers, limits, alphabet, protocol version
+│  └─ names.ts             # name sanitizing and the small blocklist
 ├─ server/                 # Cloudflare Worker (own package.json, tsconfig, wrangler.toml)
-│  ├─ src/index.ts         # HTTP API, WebSocket upgrade, CORS and origin checks, rate limits
+│  ├─ src/index.ts         # routing, WebSocket upgrade
+│  ├─ src/http.ts          # CORS, origin allowlist, JSON helpers
+│  ├─ src/env.ts           # Worker bindings and vars
 │  ├─ src/room.ts          # Room Durable Object: state, alarms, tokens, forwarding, checkpoint
-│  └─ test/
+│  ├─ src/gate.ts          # Gate Durable Object: per-IP rate limits
+│  └─ test/                # scripted clients: echo, rooms, lifecycle, limits, relay, chaos
 └─ src/
    ├─ strings.ts           # all MP text in one place (§4.5, §4.7)
    ├─ net/
@@ -470,8 +487,11 @@ Values used by the server (timers, limits, alphabet, protocol version) also live
    ├─ game/
    │  └─ controllers.ts    # PaddleController: LocalInput, AIController, RemoteInput
    └─ ui/
-      ├─ screens/          # S01 additions to S14 (HTML overlays, like the existing ones)
-      └─ mp.css            # styles for MP-only components
+      ├─ screens/index.ts  # S01 additions to S14 (HTML overlays, like the existing ones)
+      ├─ mp.css            # styles for MP-only components
+      ├─ conn.ts           # connection chip: bars, rounded ping, weak warning, aria-label
+      ├─ toast.ts          # toast messages
+      └─ design.ts         # dev-only component sheet script (design.html)
 ```
 
 The server folder has its own tsconfig so your existing `npm run build` (type-check and build) and the Vercel build are not affected. Add a build step for the Worker separately, and only deploy it with `wrangler`.
@@ -575,6 +595,7 @@ IDs are used by the tests and the sweep in §8.5.
 - `main` auto-deploys to production, so **all work goes on branch `multiplayer`**. Vercel makes a preview URL for each push, so you can test there.
 - Set `VITE_RELAY_URL` in Vercel for **Preview** and **Production** (⚠️ Y-3). Without it the MP buttons stay hidden (E-50).
 - Merge to `main` only when the QA gate in §8.5 is green.
+- *Update 14 Oct 2026:* `multiplayer` was merged into `main` at Girish's request before S-1 and S-2, so the device test happens on production. `VITE_RELAY_URL` is currently set for **Production** only. For new work, branch from `main` again and add the preview variable if you want MP on preview URLs. Preview URLs are also not in the Worker's `ALLOWED_ORIGINS`, so add them there (in `server/wrangler.toml`, then redeploy) to test MP on a preview.
 
 ### 8.2 Prompt template for every Cursor chat
 
@@ -586,9 +607,9 @@ Rules for every chat: one task per chat, commit after each task passes its "Done
 
 | Track | Tasks | Status |
 |---|---|---|
-| Day 1 | F-0, B-1 to B-6, F-1 to F-7, T-1 to T-3 | ☐ |
-| Day 2 | D2-1 to D2-7 | ☐ |
-| Both | S-1 to S-3 | ☐ |
+| Day 1 | F-0, B-1 to B-6, F-1 to F-7, T-1 to T-3 | ☑ Done (B-6 deployed by Girish) |
+| Day 2 | D2-1 to D2-7 | ☑ Done |
+| Both | S-1 to S-3 | ◐ Merged and deployed; device test and edge-case sweep open |
 
 "Day" means a work block (roughly a full working day each), not a promise. Netcode debugging is the main uncertainty. **Day 2 needs Day 1's screens**, except D2-1, which can start in parallel.
 
@@ -600,46 +621,46 @@ Rules for every chat: one task per chat, commit after each task passes its "Done
 
 **Goal:** a fully working multiplayer mode: rooms, join by link or code, matches, reconnects. Screens use your **existing classes** (buttons, modal, chip, info badge, footer) wherever they exist, plain markup elsewhere, and `data-testid` on every control, so Day 2 can style without touching logic.
 
-- [ ] **F-0 Code survey (no code changes).** Read the repo and report how the loop, world state, `input.ts`, `ai.ts`, `main.ts`, overlays and HTML are actually structured, mapping every proposal in §6.4 to the real code. Update §6.4 in this PRD if reality differs.
+- [x] **F-0 Code survey (no code changes).** Read the repo and report how the loop, world state, `input.ts`, `ai.ts`, `main.ts`, overlays and HTML are actually structured, mapping every proposal in §6.4 to the real code. Update §6.4 in this PRD if reality differs.
   - **Done when:** a short written map exists and any mismatch with this PRD is listed.
 
 **Backend**
 
-- [ ] **B-1 Scaffold the Worker.** `server/` with a Worker, a SQLite-backed `Room` Durable Object (Hibernation API), `wrangler.toml` and dev scripts. Add `.dev.vars` and `.wrangler/` to `.gitignore`.
+- [x] **B-1 Scaffold the Worker.** `server/` with a Worker, a SQLite-backed `Room` Durable Object (Hibernation API), `wrangler.toml` and dev scripts. Add `.dev.vars` and `.wrangler/` to `.gitignore`.
   - **Done when:** `wrangler dev` runs and a test WebSocket connects and echoes.
-- [ ] **B-2 Rooms API.** `POST /api/rooms`, `GET /api/rooms/:code`, `POST /api/rooms/:code/join`, `POST /api/rooms/:code/extend`, WebSocket upgrade, 4-letter code with collision retry, CORS and `Origin` allowlist (`ALLOWED_ORIGINS`).
+- [x] **B-2 Rooms API.** `POST /api/rooms`, `GET /api/rooms/:code`, `POST /api/rooms/:code/join`, `POST /api/rooms/:code/extend`, WebSocket upgrade, 4-letter code with collision retry, CORS and `Origin` allowlist (`ALLOWED_ORIGINS`).
   - **Done when:** create, preview and join work from a script, a third joiner is rejected (E-5), and a disallowed origin is refused.
-- [ ] **B-3 Room state machine.** States and alarms from §6.5, host-away tolerance (E-1), restart of the window when a guest leaves (E-3), `checkpoint` storage (E-14), all state in Durable Object storage.
+- [x] **B-3 Room state machine.** States and alarms from §6.5, host-away tolerance (E-1), restart of the window when a guest leaves (E-3), `checkpoint` storage (E-14), all state in Durable Object storage.
   - **Done when:** every row in §7.1 and §7.2 that involves the server behaves as written, using scripted clients.
-- [ ] **B-4 Validation and limits.** `v` check (E-45), message size and rate limits (E-43), per-IP limits (E-41, E-42), name rules (E-46, E-47).
+- [x] **B-4 Validation and limits.** `v` check (E-45), message size and rate limits (E-43), per-IP limits (E-41, E-42), name rules (E-46, E-47).
   - **Done when:** oversized, malformed, flooding and wrong-version clients are rejected without crashing a room.
-- [ ] **B-5 Heartbeat and relay.** Use `setWebSocketAutoResponse` for ping and pong, forward gameplay messages unchanged, and detect dead sockets within 6 s (E-21).
+- [x] **B-5 Heartbeat and relay.** Use `setWebSocketAutoResponse` for ping and pong, forward gameplay messages unchanged, and detect dead sockets within 6 s (E-21).
   - **Done when:** a killed client is detected and the peer is told within 6 s.
-- [ ] **B-6 Deploy** (needs Y-1). Deploy the Worker, set `VITE_RELAY_URL` and `ALLOWED_ORIGINS`, and use `wss://` only.
+- [x] **B-6 Deploy** (needs Y-1). Deploy the Worker, set `VITE_RELAY_URL` and `ALLOWED_ORIGINS`, and use `wss://` only.
   - **Done when:** a preview deploy on Vercel can host and join a room across two networks.
 
 **Frontend logic**
 
-- [ ] **F-1 Paddle controllers.** `controllers.ts` with `LocalInput`, `AIController` and `RemoteInput`. vs-Bot must not change.
+- [x] **F-1 Paddle controllers.** `controllers.ts` with `LocalInput`, `AIController` and `RemoteInput`. vs-Bot must not change.
   - **Done when:** a **seeded headless simulation** gives identical results before and after (reuse your existing headless approach), and vs-Bot plays the same by hand.
-- [ ] **F-2 Transport, API, session.** `transport.ts`, `api.ts`, `session.ts`, `profile.ts` (safe storage, E-33) and the session state machine for S01 to S14, including duplicate tabs (E-22) and `tt-session` in `sessionStorage`.
+- [x] **F-2 Transport, API, session.** `transport.ts`, `api.ts`, `session.ts`, `profile.ts` (safe storage, E-33) and the session state machine for S01 to S14, including duplicate tabs (E-22) and `tt-session` in `sessionStorage`.
   - **Done when:** the session machine passes unit tests for every screen transition in §4.6.
-- [ ] **F-3 Screens S01 to S14.** HTML overlays like the existing ones, microcopy only from `src/strings.ts`, history entries for Back, Share and clipboard fallbacks (E-30 to E-32), code-box behavior (E-48), the MP buttons on the start screen (§4.2) hidden when no relay is configured (E-50).
+- [x] **F-3 Screens S01 to S14.** HTML overlays like the existing ones, microcopy only from `src/strings.ts`, history entries for Back, Share and clipboard fallbacks (E-30 to E-32), code-box behavior (E-48), the MP buttons on the start screen (§4.2) hidden when no relay is configured (E-50).
   - **Done when:** the whole flow in §4.6 can be clicked through without console errors, and the start screen is unchanged when `VITE_RELAY_URL` is empty.
-- [ ] **F-4 Host simulation and guest view.** `hostSim.ts`, `guestView.ts`, `mirror.ts`, `clock.ts`. Human hit radius 0.17 m for both paddles, `solveShot` for both, and the guest's hit forgiveness (§6.7).
+- [x] **F-4 Host simulation and guest view.** `hostSim.ts`, `guestView.ts`, `mirror.ts`, `clock.ts`. Human hit radius 0.17 m for both paddles, `solveShot` for both, and the guest's hit forgiveness (§6.7).
   - **Done when:** a full match plays between two windows and each player sees themselves at the near end with the red paddle and correct names and score.
-- [ ] **F-5 Events and match behavior.** Events drive sounds, shake (own hits only), net shimmer, +1 and the point caption (viewer-relative, §4.7). Serve timer (E-18). Character expressions mapped by viewer. Auto bubbles off. Emote messages, forfeit and leave logic (E-28).
+- [x] **F-5 Events and match behavior.** Events drive sounds, shake (own hits only), net shimmer, +1 and the point caption (viewer-relative, §4.7). Serve timer (E-18). Character expressions mapped by viewer. Auto bubbles off. Emote messages, forfeit and leave logic (E-28).
   - **Done when:** each behavior in §4.7 works in a two-window test.
-- [ ] **F-6 Resilience.** Visibility handling for both players (E-12, E-49), wake lock (E-34), reconnect with backoff (E-16), `state_sync`, checkpoint restore (E-14), latency policy (E-19, E-20), low-fps warning (E-23).
+- [x] **F-6 Resilience.** Visibility handling for both players (E-12, E-49), wake lock (E-34), reconnect with backoff (E-16), `state_sync`, checkpoint restore (E-14), latency policy (E-19, E-20), low-fps warning (E-23).
   - **Done when:** every row in §7.2 passes its check.
-- [ ] **F-7 Result, rematch, leave.** S11 to S13 logic, a 30-second rematch timeout, and E-53.
+- [x] **F-7 Result, rematch, leave.** S11 to S13 logic, a 30-second rematch timeout, and E-53.
   - **Done when:** rematch keeps sides, leaving notifies the friend, and an accidental tap does nothing.
 
 **Tests**
 
-- [ ] **T-1 Two-client end-to-end** (Playwright, two browser contexts against `wrangler dev`): host, join by code, join by link, play to 11, rematch, leave.
-- [ ] **T-2 Chaos script:** drop and restore one client, add latency, reload the host mid-match. Covers E-11 to E-19.
-- [ ] **T-3 Unit tests:** mirror transform, interpolation, code generation, state machines, input clamping, and the seeded vs-Bot golden test from F-1.
+- [x] **T-1 Two-client end-to-end** (Playwright, two browser contexts against `wrangler dev`): host, join by code, join by link, play to 11, rematch, leave.
+- [x] **T-2 Chaos script:** drop and restore one client, add latency, reload the host mid-match. Covers E-11 to E-19.
+- [x] **T-3 Unit tests:** mirror transform, interpolation, code generation, state machines, input clamping, and the seeded vs-Bot golden test from F-1.
 
 **Day 1 exit:** T-1 to T-3 pass, and you have played one full match with a friend on a Vercel preview URL.
 
@@ -651,28 +672,28 @@ Rules for every chat: one task per chat, commit after each task passes its "Done
 
 **Attach to every Day 2 chat:** `TT game project.md` (§8 art direction, §9 UI), this PRD (§4 UX and copy), the reference frames, and a fresh screenshot of the current screen.
 
-- [ ] **D2-1 Tokens and MP components** *(can start early)*. Reuse existing tokens (palette in §8.1 of `TT game project.md`, type scale §8.2). Add only what's missing: a code card, four-box code input, countdown ring, connection bars icon, toast, name field. **No new colours.**
+- [x] **D2-1 Tokens and MP components** *(can start early)*. Reuse existing tokens (palette in §8.1 of `TT game project.md`, type scale §8.2). Add only what's missing: a code card, four-box code input, countdown ring, connection bars icon, toast, name field. **No new colours.**
   - **Done when:** one page shows all new components next to the existing buttons and modal, at phone and desktop widths.
-- [ ] **D2-2 Lobby screens (S01 additions to S07).** Extended start screen with the divider, the two MP buttons and the name line, host lobby (large spaced code card, Share invite as the hero, countdown that turns `bubble` red at 0:20, +2 min), friend-joined state, code entry, invite screen, guest lobby.
+- [x] **D2-2 Lobby screens (S01 additions to S07).** Extended start screen with the divider, the two MP buttons and the name line, host lobby (large spaced code card, Share invite as the hero, countdown that turns `bubble` red at 0:20, +2 min), friend-joined state, code entry, invite screen, guest lobby.
   - **Done when:** all look finished at 360 px, 768 px and 1280 px, portrait and landscape on phone, and the start screen still matches `TT game project.md` §9.3 for everything that existed.
-- [ ] **D2-3 Match chrome (S08 to S13).** Countdown numerals, connection chip and bars, leave button (44 px), reconnect overlay, result and rematch screens, Leave dialog, emote tray, the red bubble for friend emotes and the red "You" pill for your own.
+- [x] **D2-3 Match chrome (S08 to S13).** Countdown numerals, connection chip and bars, leave button (44 px), reconnect overlay, result and rematch screens, Leave dialog, emote tray, the red bubble for friend emotes and the red "You" pill for your own.
   - **Done when:** chrome never covers the table or paddle at any size, and every control is at least 44 px.
-- [ ] **D2-4 Character reactions.** Verify each expression in §4.7 reads clearly and ties to the right viewer-relative trigger. Use the existing expressions. No new character.
+- [x] **D2-4 Character reactions.** Verify each expression in §4.7 reads clearly and ties to the right viewer-relative trigger. Use the existing expressions. No new character.
   - **Done when:** each state is distinct, and auto bubbles stay off in MP.
-- [ ] **D2-5 Message screens (S14).** All eleven rows in §4.5, each with one primary button and a quiet "Play vs Bot" link.
+- [x] **D2-5 Message screens (S14).** All eleven rows in §4.5, each with one primary button and a quiet "Play vs Bot" link.
   - **Done when:** all render correctly at every breakpoint.
-- [ ] **D2-6 Motion.** Screen transitions, countdown pop and fade, toasts, button feedback, in the same style as the existing score pop and bubble animations. `prefers-reduced-motion` turns them off.
+- [x] **D2-6 Motion.** Screen transitions, countdown pop and fade, toasts, button feedback, in the same style as the existing score pop and bubble animations. `prefers-reduced-motion` turns them off.
   - **Done when:** nothing janky at 60 fps on a mid-range phone.
-- [ ] **D2-7 Accessibility and visual QA.** Contrast 4.5:1 or better, visible focus, `aria-live` for expiry, "joined", reconnecting and result, labels on icon buttons, signal strength also stated as text. Optional link-preview image (Y-17).
+- [x] **D2-7 Accessibility and visual QA.** Contrast 4.5:1 or better, visible focus, `aria-live` for expiry, "joined", reconnecting and result, labels on icon buttons, signal strength also stated as text. Optional link-preview image (Y-17).
   - **Done when:** the pass in §10 succeeds and screenshots match the reference style.
 
 ---
 
 ### 8.5 Shared QA and Ship
 
-- [ ] **S-1 Real-device test** (needs Y-6): phone vs laptop, phone vs phone, iOS Safari and Android Chrome, Wi-Fi and mobile data.
-- [ ] **S-2 Edge-case sweep:** tick every group below.
-- [ ] **S-3 Ship:** merge `multiplayer` to `main`, confirm the production deploy, play one last match, and simulate the free-limit error to see the "resting" screen.
+- [ ] **S-1 Real-device test** (needs Y-6): phone vs laptop, phone vs phone, iOS Safari and Android Chrome, Wi-Fi and mobile data. *Next step: Girish is testing on two phones.*
+- [ ] **S-2 Edge-case sweep:** tick every group below. *Server-side rows are covered by the scripted tests in `server/test/` and the chaos script, but the full sweep on real devices hasn't been done.*
+- [ ] **S-3 Ship:** merge `multiplayer` to `main`, confirm the production deploy, play one last match, and simulate the free-limit error to see the "resting" screen. *Merged and deployed on 14 Oct 2026 (production deploy ready, relay CORS checked for `tabel-tennis.vercel.app`). Last match on devices and the "resting" check are still open.*
 
 | Group | IDs | ☐ |
 |---|---|---|
@@ -751,15 +772,15 @@ Each shows when it blocks work and **what I'll assume if you don't answer**.
 
 Everything in `TT game project.md` §13 still holds (first frame matches the reference, depth scaling, tilt, no scroll, no external image assets), and in addition:
 
-- [ ] A friend can host, and another friend can join by link or code, and finish an 11-point match, with no sign-up.
-- [ ] Each player sees themselves at the near end with the red paddle, and the friend's name on the scoreboard.
+- [x] A friend can host, and another friend can join by link or code, and finish an 11-point match, with no sign-up. *(T-1, two browser contexts; real devices pending S-1)*
+- [x] Each player sees themselves at the near end with the red paddle, and the friend's name on the scoreboard.
 - [ ] Rules and feel match vs-Bot: serve rotation (every 2 points, every point from 10–10), 1.6 s point freeze, 0.17 m hit radius.
 - [ ] At 100 ms RTT the guest's paddle feels instant and the ball motion looks smooth.
 - [ ] A 10-second connection drop during a rally recovers without losing the score.
 - [ ] A host who switches apps to share the link does not lose the room.
 - [ ] A room that nobody joins expires after 2 minutes with a clear screen.
-- [ ] vs-Bot is unchanged (seeded simulation matches) and still works if the relay is unreachable.
-- [ ] The bundle is under 150 KB gzipped, with no new client dependencies.
+- [x] vs-Bot is unchanged (seeded simulation matches) and still works if the relay is unreachable.
+- [x] The bundle is under 150 KB gzipped, with no new client dependencies. *(About 27 KB JS and 4.7 KB CSS gzipped)*
 - [ ] Rooms and their data are gone shortly after both players leave.
 
 ### 10.2 Test plan
@@ -774,11 +795,11 @@ Everything in `TT game project.md` §13 still holds (first frame matches the ref
 
 **Security:** malformed and oversized messages dropped, a third join rejected, impossible paddle values clamped, a disallowed origin refused.
 
-**Accessibility pass**
-- [ ] Keyboard-only through the start screen, lobbies and result, with a visible focus ring.
-- [ ] A screen reader announces "Room expires in…", "{Name} joined", "Reconnecting…" and the result.
-- [ ] Reduced motion on: no shake, streak or large movement.
-- [ ] Zoom to 200%: nothing is cut off.
+**Accessibility pass** (run with `npm run qa:a11y`, results from 14 Oct 2026)
+- [x] Keyboard-only through the start screen, lobbies and result, with a visible focus ring. *Every control shows a 3 px blue ring. Result and rematch buttons were not driven by keyboard in the script.*
+- [x] A screen reader announces "Room expires in…", "{Name} joined", "Reconnecting…" and the result. *All go through the polite live region `#mp-live`; only the expiry announcement was checked by script.*
+- [x] Reduced motion on: no shake, streak or large movement. *No running animations with `reducedMotion: 'reduce'`.*
+- [ ] Zoom to 200%: nothing is cut off. *Not run in a browser. Layouts fit at 360 px wide, which is close to a 640 px window at 200%.*
 
 ---
 
@@ -801,7 +822,43 @@ Everything marked ⚠️ in §9 has a default, so building can start now. Answer
 
 ---
 
+## 13. Current State and Known Gaps (14 Oct 2026)
+
+### 13.1 Running and testing
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Vite on :5173. Uses `.env.development`, which points at a local relay on :8787 |
+| `cd server; npm run dev` | Local relay with `wrangler dev` on :8787 |
+| `npm run build` | Type-check and build. Without `VITE_RELAY_URL` the MP buttons are hidden |
+| `npm test` | Unit tests: session machine, net helpers, vs-Bot golden hash |
+| `npm run test:e2e` | Two-client Playwright test. Needs `npm run dev` and the local relay already running |
+| `npm run test:chaos` | Drop, latency and host-reload script against a running relay |
+| `npm run qa:shots -- <tag>` | Screenshots of every MP screen into `design-shots/<tag>/` (gitignored). Set `ONLY=360,land` to limit sizes |
+| `npm run qa:a11y` | Touch-target, focus-ring, reduced-motion and live-region checks |
+| `cd server; npx wrangler deploy` | Deploy the relay (Girish runs this; needs `wrangler login`) |
+
+Dev-only helpers: `/design.html` (component sheet) and `window.__mp` (forces session screens for screenshots). Neither ships in the production build.
+
+### 13.2 Known gaps that need a logic change
+
+These were found during the Day 2 design pass, which wasn't allowed to change logic. The UI works around the first two.
+
+| Gap | Where | Effect today |
+|---|---|---|
+| Space is swallowed in text inputs | `src/game/input.ts` | The UI stops key events from inputs, so typing works, but this should be fixed at the source |
+| Ping text is a raw float | `src/main.ts` (`setConn`) | `src/ui/conn.ts` rewrites it to "85 ms" and derives the bars |
+| Message primaries "Try another code", "Host your own", "Create new room", "Retry" only go back to the menu | `src/ui/screens/index.ts` / session | One extra tap for the player |
+| Reconnect overlay can't show "Waiting 12 s" | session has no seconds left | Shows "Reconnecting…" and "Your score is safe." only |
+| Serve-timer ring isn't drawn | no timer value in render state | The serve timer still works, it just isn't visible |
+| Space on a focused button may also fire the game's primary action | `src/game/input.ts` | Desktop keyboard only; result screen doesn't autofocus Rematch to avoid accidental rematches |
+| `SERVE_TIMEOUTS_BEFORE_PROMPT` is defined but no prompt is shown | `shared/constants.ts` | Two serve timeouts don't trigger a prompt |
+
+---
+
 ## Appendix A. Edits to `TT game project.md` (so the two files don't clash)
+
+*Applied on 14 Oct 2026 (see §0, §2, §4, §12, §16 and §17 of `TT game project.md`).*
 
 A patched copy, `TT_game_project_updated.md`, accompanies this PRD. These are the only changes, and none alter any single-player behavior:
 

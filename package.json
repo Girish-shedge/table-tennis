@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "test:chaos": "node server/test/chaos.mjs"
+    "test:chaos": "node server/test/chaos.mjs",
+    "qa:shots": "node scripts/design-shots.mjs",
+    "qa:a11y": "node scripts/a11y-check.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",

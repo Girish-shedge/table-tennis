@@ -1,8 +1,36 @@
 # Table Tennis (TT) — Project Spec
 
-A single-screen, hand-drawn-style, pseudo-3D table tennis game that plays in the browser on desktop (keyboard + mouse) and mobile (touch). You play the red paddle at the near end against a character with a blue paddle at the far end.
+A single-screen, hand-drawn-style, pseudo-3D table tennis game that plays in the browser on desktop (keyboard and mouse) and mobile (touch). You play the red paddle at the near end against **Bot**, a hand-drawn character with a blue paddle at the far end.
 
-This document is the build brief, reverse-engineered from the 10 reference frames. Where a frame doesn't answer a question, it is marked **[Assumption]**, so you can change it.
+This document started as the build brief, reverse-engineered from the 10 reference frames (`frame_001.png` to `frame_010.png`). It now also records what was actually built, the decisions taken along the way, and every update since the first release.
+
+---
+
+## 0. Status and Links
+
+| | |
+|---|---|
+| **Status** | v2.0 live: vs-Bot plus online multiplayer (specified in `TT multiplayer PRD.md`). Real-device multiplayer test in progress |
+| **Live game** | [tabel-tennis.vercel.app](https://tabel-tennis.vercel.app) |
+| **Other live URLs** | [table-tennis-alpha-jet.vercel.app](https://table-tennis-alpha-jet.vercel.app) (original Vercel address, still works) |
+| **Source code** | [github.com/Girish-shedge/table-tennis](https://github.com/Girish-shedge/table-tennis) (public, branch `main`) |
+| **Hosting** | Vercel, connected to GitHub. Every push to `main` deploys to production automatically. |
+| **Multiplayer relay** | Cloudflare Worker `tt-relay` at `https://tt-relay.girish-tt.workers.dev` (code in `server/`, deployed with `wrangler`) |
+| **Bundle size** | About 27 KB of gzipped JavaScript and 4.7 KB of CSS with multiplayer (target is under 150 KB). vs-Bot alone was 12.7 KB |
+
+Note: `table-tennis.vercel.app` is owned by another Vercel account, so the custom address uses the spelling `tabel-tennis`.
+
+### Run it locally
+
+```bash
+npm install
+npm run dev      # dev server with hot reload
+npm run build    # type-check and build to dist/
+npm run preview  # serve the production build
+npm test         # unit tests, including the seeded vs-Bot golden test
+```
+
+Multiplayer needs the relay as well. See `TT multiplayer PRD.md` §13 for the local relay, the end-to-end test and the QA scripts.
 
 ---
 
@@ -10,51 +38,45 @@ This document is the build brief, reverse-engineered from the 10 reference frame
 
 ### 1.1 Scene layout (top to bottom, centered, white page)
 
-| Layer | What the frames show |
-|---|---|
-| Scoreboard | Two large serif numerals, e.g. `3 · 4`. A small grey dot separates them. Tiny grey labels sit under each number: **You** (left) and **Ahmed** (right). |
-| Opponent character | A hand-drawn blob "head" with a thick black outline and white fill, floating above the far end of the table. It has no body. It moves left and right, roughly following the ball or its own paddle. |
-| Speech bubble | A small red rounded rectangle with white serif text (`Hey!`) at the head's upper right. It pops in and fades out (frame 2 shows it half transparent). |
-| Opponent paddle | A small blue paddle with a dark outline, floating just above the far edge of the table. It tilts as it moves. |
-| Ball | A tiny white ball with a black outline and a small soft shadow on the table. It looks smaller at the far end and larger near the player (perspective). |
-| Table | A blue trapezoid in perspective with a white border line, a white center line, and a darker blue front-edge thickness. |
-| Net | A translucent light-blue band across the table, with two black posts and a black top cord. |
-| Player paddle | A red paddle with a thick black outline, a white curved highlight, and a white handle. A small white hand/grip icon sits on the face. A dark-blue ellipse shadow sits on the table beneath it. |
-| Cursor tooltip | A red pill label reading `Grab` appears beside the paddle while the pointer hovers over or drags it. |
-| Hint caption | Small grey text centered under the table: `Arrow keys to move · Space to serve`. |
-| Footer pill | A floating white rounded pill with a soft shadow: `ahmed@emanata.com │ Instagram │ X`. |
+| Layer | What the frames show | What was built |
+|---|---|---|
+| Scoreboard | Two large serif numerals (`3 · 4`) with a small grey dot between them and tiny grey labels underneath | Big, bold numerals in SF Cartoonist Hand, sitting slightly higher than in the reference. Labels read **You** and **Bot**. |
+| Opponent character | A hand-drawn blob "head" with no body, floating above the far end and following the ball | An original blob character, **Bot**, with its own expressions |
+| Speech bubble | A small red rounded rectangle with white text (`Hey!`) that pops in and fades out | Same, with reaction lines (see §8.5) |
+| Opponent paddle | A small blue paddle floating above the far edge that tilts as it moves | Same |
+| Ball | A tiny white ball with a black outline and a soft shadow, scaled by depth | Same, plus a motion streak and a ground bounce and roll (see §8.4) |
+| Table | A blue trapezoid in perspective with a white border, a white center line and a darker front edge | Same |
+| Net | A translucent light-blue band with two black posts and a black top cord | Redesigned to match the reference more closely (see §8.6) |
+| Player paddle | A red paddle with a thick outline, a white highlight, a white handle and a hand icon. A dark-blue shadow sits beneath it. | Same, drawn at 80% opacity so the ball stays visible through it |
+| Cursor tooltip | A red pill that reads `Grab` when hovering or dragging | A red pill that reads **`You`** |
+| Hint caption | Small grey text under the table | Same, with different text for keyboard and touch. Point results show here in red (see §9). |
+| Footer pill | A floating white pill: `email │ Instagram │ X` | `Instagram │ X │ LinkedIn` with Girish's own links. No email. |
 
-### 1.2 Character expressions (from frames)
+### 1.2 Character expressions
 
 | State | Look | When it appears |
 |---|---|---|
-| **Surprised / watching** | Wide eyes with pupils, open oval mouth | Default while the rally is live |
-| **Dizzy / hit** | Eyes become spiral or "X" marks, a swirl or bow sits on the head, the mouth is a small "o", and the `Hey!` bubble shows | When the player returns or hits the ball back, or the player scores a point |
-| **Looking sideways** | Pupils shift toward the ball direction, and the head tilts and slides | During the rally |
+| **Watching** | Wide eyes with pupils, open oval mouth | Default during a rally |
+| **Shocked** | Brief surprised reaction | When the player returns the ball |
+| **Dizzy** | Spiral or "X" eyes and a `Hey!`-style bubble | When the player wins a point |
+| **Happy** | Pleased face with a `Ha!`-style bubble | When Bot wins a point |
+| **Looking sideways** | Pupils follow the ball, and the head slides and tilts | Throughout the rally |
 
-### 1.3 Paddle behavior (from frames)
+### 1.3 Paddle behavior
 
-- The player paddle moves left and right **and forward and back** (toward the net and away). Frames 6, 7, 9 and 10 show it raised toward the net, and the other frames show it near the front edge. The paddle scales with depth: smaller near the net, larger near the player.
-- The paddle **tilts (rotates)** in the direction of movement. Frames 3 and 8 show about 15–25° of lean while it moves sideways.
-- The shadow ellipse follows the paddle on the table plane, and the shadow's gap from the paddle suggests height.
-- A grab/drag cursor with the `Grab` label implies **pointer-drag control**. Arrow keys are the alternative.
+- The player paddle moves left, right, toward the net and away from it, and scales with depth.
+- It tilts in the direction of movement.
+- Its shadow follows it on the table plane.
+- Arrow keys, pointer drag and touch drag all control it.
 
-### 1.4 Scoreboard progression
-
-The frames show the "You" score as 3 → 2 → 1 against Ahmed's 4 (the capture appears to be in reverse time order, or the demo resets). Treat it as a normal points race.
-
-**[Assumption]** First to **11**, win by 2. Make this a config constant.
-
-### 1.5 Reference proportions (measured on a 1136 × 718 frame)
-
-Use these as ratios of the game's design size:
+### 1.4 Reference proportions (measured on a 1136 × 718 frame)
 
 | Element | Approx. position (px) | As a ratio of the frame |
 |---|---|---|
 | Table far edge | y ≈ 293, x from 420 to 705 | y 0.41, x 0.37–0.62 |
 | Table near edge | y ≈ 590, x from 265 to 860 | y 0.82, x 0.23–0.76 |
 | Net band | y ≈ 352–390, x from 345 to 780 | y 0.49–0.54 |
-| Scoreboard | center x ≈ 560, y ≈ 80 | y 0.11 |
+| Scoreboard | center x ≈ 560, y ≈ 80 | y 0.11 (built slightly higher) |
 | Opponent head | y ≈ 130–215 | y 0.18–0.30 |
 | Hint caption | y ≈ 622 | y 0.87 |
 | Footer pill | y ≈ 670 | y 0.93 |
@@ -64,14 +86,14 @@ Use these as ratios of the game's design size:
 ## 2. Goals and Non-Goals
 
 **Goals**
-- Instant play with no sign-in. The first interaction starts a serve.
+- Instant play with no sign-in.
 - Works on desktop (keyboard and mouse) and on phones and tablets (touch), portrait and landscape.
 - Charming hand-drawn look with smooth 60 fps animation.
-- Fair, beatable AI with difficulty that ramps up.
+- A fair, beatable AI with three difficulty modes: Easy, Medium and Hard.
 
-**Non-goals (v1)**
-- Online multiplayer, accounts, leaderboards.
-- Real 3D engine. We use 2D canvas with a perspective projection.
+**Non-goals**
+- Accounts and leaderboards. (Online multiplayer was added in v2.0 and is specified in `TT multiplayer PRD.md`.)
+- A real 3D engine. The game uses 2D canvas with a perspective projection.
 
 ---
 
@@ -79,51 +101,74 @@ Use these as ratios of the game's design size:
 
 | Concern | Choice | Why |
 |---|---|---|
-| Language | TypeScript | Safer physics and state code |
-| Build | Vite | Fast dev server, simple static deploy |
+| Language | TypeScript (strict) | Safer physics and state code |
+| Build | Vite 5 | Fast dev server, simple static deploy |
 | Rendering | HTML5 Canvas 2D | Full control of the hand-drawn look, and it performs well on mobile |
-| Input | Pointer Events + Keyboard Events | One code path for mouse, touch and pen |
-| Audio | Web Audio API (small synthesized blips) | No asset files needed. Unlock on first gesture |
+| Input | Pointer Events and Keyboard Events | One code path for mouse, touch and pen |
+| Audio | Web Audio API (synthesized blips) | No asset files. Unlocked on the first gesture. |
 | State | Plain finite state machine | Small game, no framework needed |
-| Fonts | A serif display face (e.g. Newsreader or Source Serif 4) for numerals, bubble and footer, and a clean sans for tiny labels | Matches the serif numerals in the frames |
-| Hosting | Any static host (Netlify, Vercel, GitHub Pages) | |
+| Font | **SF Cartoonist Hand** (regular, bold, italic), self-hosted from `public/fonts/` | Matches the hand-drawn art. Falls back to Comic Sans MS, then Chalkboard SE. |
+| Hosting | Vercel with GitHub integration | Auto-deploy on every push |
 
-**[Assumption]** No React. If you prefer React, keep the game loop and canvas outside React state.
+No React. The game loop and canvas live outside any UI framework.
 
 ---
 
 ## 4. Project Structure
 
+The project lives in the workspace root.
+
 ```
-tt-game/
-├─ index.html
-├─ project.md
+./
+├─ index.html              # canvas, start and game-over overlays, controls, footer, MP containers
+├─ TT game project.md      # this document
+├─ TT multiplayer PRD.md   # online multiplayer spec and status
 ├─ package.json
+├─ tsconfig.json
 ├─ vite.config.ts
-├─ src/
-│  ├─ main.ts              # bootstrap, resize, start loop
-│  ├─ config.ts            # all tunable constants
-│  ├─ game/
-│  │  ├─ state.ts          # FSM: idle, serving, rally, point, gameover
-│  │  ├─ physics.ts        # ball integration, bounce, net, paddle hit
-│  │  ├─ ai.ts             # opponent controller
-│  │  ├─ score.ts          # scoring and win rules
-│  │  └─ input.ts          # keyboard, pointer drag, touch
-│  ├─ render/
-│  │  ├─ projection.ts     # world → screen transform
-│  │  ├─ table.ts          # table, lines, net
-│  │  ├─ paddle.ts         # player and opponent paddles
-│  │  ├─ ball.ts           # ball and shadow
-│  │  ├─ character.ts      # opponent head and expressions
-│  │  ├─ bubble.ts         # speech bubble and Grab tooltip
-│  │  ├─ hud.ts            # scoreboard, caption
-│  │  └─ sketch.ts         # wobbly stroke helpers
-│  ├─ audio.ts
-│  └─ ui/
-│     ├─ footer.css        # footer pill
-│     └─ styles.css
-└─ public/
+├─ vitest.config.ts
+├─ .gitignore              # excludes node_modules, dist, .vercel, frame_*.png, .dev.vars, .wrangler, test output
+├─ TrueType/               # source copies of the SF Cartoonist font family
+├─ public/
+│  └─ fonts/               # SFCartoonistHand.ttf, -Bold.ttf, -Italic.ttf (served to the browser)
+├─ shared/                 # protocol and constants shared by client and relay (multiplayer)
+├─ server/                 # Cloudflare Worker relay (multiplayer)
+├─ tests/                  # unit tests, vs-Bot golden test, two-client e2e test
+├─ scripts/                # screenshot and accessibility QA scripts
+└─ src/
+   ├─ main.ts              # bootstrap, resize, events, overlays, draw order, loop
+   ├─ config.ts            # all tunable constants, difficulty presets, colors, fonts, footer links
+   ├─ strings.ts           # multiplayer copy
+   ├─ audio.ts             # synthesized sounds and mute (saved in localStorage)
+   ├─ net/                 # multiplayer: transport, API, session, host sim, guest view, mirror, clock
+   ├─ game/
+   │  ├─ state.ts          # FSM: MENU, SERVE, RALLY, POINT, GAME_OVER
+   │  ├─ physics.ts        # ball integration, table, net and floor bounces, shot solver
+   │  ├─ ai.ts             # opponent controller
+   │  ├─ controllers.ts    # paddle controllers: local input, AI, remote input
+   │  ├─ score.ts          # win rule and server rotation
+   │  └─ input.ts          # keyboard, pointer drag, touch drag
+   ├─ render/
+   │  ├─ projection.ts     # world → screen transform and back
+   │  ├─ table.ts          # table, lines, net
+   │  ├─ paddle.ts         # player and opponent paddles (with transparency support)
+   │  ├─ ball.ts           # ball, shadow, motion streak
+   │  ├─ character.ts      # Bot's head and expressions
+   │  ├─ bubble.ts         # speech bubble and "You" tooltip
+   │  ├─ hud.ts            # scoreboard, +1 animation, caption
+   │  └─ sketch.ts         # wobbly stroke helpers
+   └─ ui/
+      ├─ styles.css        # font faces, type scale, overlays, buttons, info badge
+      ├─ footer.css        # footer pill
+      ├─ mp.css            # multiplayer components and screens
+      ├─ screens/index.ts  # multiplayer screens
+      ├─ conn.ts, toast.ts # connection chip and toasts
+      └─ design.ts         # dev-only component sheet (design.html)
 ```
+
+The full multiplayer file list is in `TT multiplayer PRD.md` §6.11.
+
+The reference frames are kept locally but not pushed to GitHub.
 
 ---
 
@@ -131,30 +176,20 @@ tt-game/
 
 ### 5.1 World space (meters, table centered)
 
-- `x`: left (−) to right (+). Table width **1.525 m**, so x ∈ [−0.7625, 0.7625].
-- `z`: depth. Player's end at `z = 0`, opponent's end at `z = 2.74` (table length). The net is at `z = 1.37`.
-- `y`: height above the table surface. The net is 0.1525 m high.
+- `x` runs left (−) to right (+). The table is **1.525 m** wide, so x ∈ [−0.7625, 0.7625].
+- `z` is depth. The player's end is at `z = 0`, the opponent's end at `z = 2.74`, and the net at `z = 1.37`.
+- `y` is height above the table surface. The net is 0.1525 m high and the floor is at `y = −0.76`.
 
 ### 5.2 Perspective to screen
 
-Use a simple pinhole projection for a camera behind and above the player's end:
+A pinhole projection for a camera behind and above the player's end, tuned so the far edge is **0.48×** the width of the near edge, as in the reference. `Projection.project(x, y, z)` maps world to screen, and `unprojectToPlane` maps a pointer position back onto a world plane for drag control. Paddles, the ball and shadows scale with depth.
 
-```
-scale(z)  = f / (z + d)            // d = camera distance behind z=0
-screenX   = cx + x * scale(z) * PX_PER_M
-screenY   = horizonY + (camH - y) * scale(z) * PX_PER_M ... (tune so z=0 → y≈0.82H and z=2.74 → y≈0.41H)
-```
+### 5.3 Responsive scaling
 
-Tune `f`, `d` and `camH` until the table's trapezoid matches the ratios in §1.5. The near edge should be about 595 px wide and the far edge about 285 px wide on a 1136 px frame, so the far/near width ratio is about **0.48**.
-
-Sprite sizes (paddles, ball, shadows) multiply by `scale(z)`. This produces the "bigger near you, smaller far away" effect seen in the frames.
-
-### 5.3 Design resolution and responsive scaling
-
-- Design at **1136 × 718** (about 1.58 : 1) for landscape, and a **portrait layout** of about **720 × 1100** for phones.
-- Render at `devicePixelRatio` (cap at 2 or 3) for sharpness.
-- On resize, recompute the canvas CSS size to fit the viewport while preserving the aspect ratio, and re-center it.
-- In portrait, the table fills about 92% of the viewport width, the scoreboard stays on top, and the footer pill pins to the bottom with `env(safe-area-inset-bottom)`.
+- Landscape design size is **1136 × 718**, with a separate portrait layout for phones.
+- The canvas renders at `devicePixelRatio` for sharpness.
+- On resize or orientation change, the layout is recomputed and the game state is kept.
+- The footer pill respects `env(safe-area-inset-bottom)`.
 
 ---
 
@@ -163,53 +198,65 @@ Sprite sizes (paddles, ball, shadows) multiply by `scale(z)`. This produces the 
 ### 6.1 State machine
 
 ```
-IDLE (first load, hint visible)
-  └─ Space / tap  →  SERVE
+MENU (start screen: pick Easy, Medium or Hard)
+  └─ choose a mode  →  SERVE
 SERVE (ball held above the server's paddle)
-  └─ Space / tap (player) or timer (AI)  →  RALLY
+  └─ Space / tap (player) or a timer (Bot)  →  RALLY
 RALLY (physics live)
   └─ ball dies  →  POINT
-POINT (1.2 s freeze, reaction animation, score updates)
-  └─ if win  →  GAME_OVER  else  →  SERVE (alternate server every 2 points)
-GAME_OVER (winner banner, "Play again" via Space or tap)
+POINT (1.6 s freeze: the ball keeps falling and rolling, reactions play, the score updates)
+  └─ if someone has won  →  GAME_OVER  else  →  SERVE
+GAME_OVER (result modal: "Play again" or "Change difficulty")
 ```
 
-### 6.2 Ball physics
+The difficulty is **locked for the whole match**. It can only be changed from the game-over modal.
 
-Per fixed step (`dt = 1/120 s`, accumulate from `requestAnimationFrame`):
+### 6.2 Rules
 
-- Gravity `g = 9.8 m/s²` on `y` (you can exaggerate to 12 for a snappier feel).
-- Integrate position with semi-implicit Euler.
-- **Table bounce**: when `y ≤ 0` and the ball is within the table bounds, set `vy = −vy * 0.85`, set `y = 0`, play a tick, and register which half it bounced on.
-- **Net**: if the ball crosses `z = 1.37` with `y < 0.1525 + ballRadius`, reverse and damp `vz` and register a "let" or a fault.
-- **Out**: if the ball hits the floor (`y < −0.76`) or passes the end without a valid bounce, the point ends.
-- **Rule check (simplified)**: a valid return needs the ball to bounce once on the receiver's half before being hit. A hit with no bounce, or a bounce on the hitter's own half after hitting, loses the point.
+- First to **11**, win by **2**.
+- Serve switches every 2 points, and every point at deuce (10–10 and beyond).
+- A valid return must bounce once on the receiver's half. A missed ball, a net, an out, a double bounce or a fault ends the point.
 
-### 6.3 Paddle hit
+### 6.3 Ball physics
 
-- Hit test in world space: ball within the paddle's radius (about 0.09 m) at the paddle's `z`, with a tolerance window of about ±0.15 m in `y`.
-- The return velocity is built from:
-  - Base forward speed (about 3.5–5 m/s).
-  - **Sideways aim** from where on the paddle face the ball hit: `vx += (ball.x − paddle.x) * k`.
-  - **Paddle velocity transfer**: `v += paddleVelocity * 0.6`. Moving the paddle as you hit adds power and angle.
-  - **Paddle depth**: moving the paddle forward at contact adds speed.
-- Trigger the **hit animation** (paddle squash, small screen shake of 2–3 px, "tok" sound).
+Fixed step `dt = 1/120 s`, accumulated from `requestAnimationFrame`.
 
-### 6.4 Player paddle
+- Gravity is 9.8 m/s², integrated with semi-implicit Euler.
+- **Table bounce**: `vy = −vy × 0.85`.
+- **Net**: collisions only count while the point is live.
+- **Floor**: once a point is over, the ball keeps going. It drops to the floor, bounces with half its speed, loses 20% of its horizontal speed per bounce, then rolls to a stop with friction. If it lands behind the far end of the table, the table hides it.
+
+### 6.4 Paddle hit
+
+- The hit test happens in world space: the player's hit radius is 0.17 m, and Bot's is 0.09 m plus a per-difficulty bonus.
+- Return shots come from a ballistic solver (`solveShot`) that always clears the net.
+- Where the ball meets the paddle face, and how the paddle is moving, both steer the aim.
+- Each hit plays a "tok" sound. A player hit also gives a small screen shake.
+
+### 6.5 Player paddle
 
 - `x` is clamped to the table width plus a 0.25 m margin.
-- `z` is clamped to the player's half, from `z = 0.1` to `z = 1.2`.
-- Smoothly follow the target with critically damped easing (about 0.12 s).
-- **Tilt**: `rotation = clamp(vx * 0.35, −0.45, 0.45)` radians, eased.
-- **Shadow**: an ellipse on the table plane under the paddle, with opacity falling as height rises.
+- `z` is clamped between 0.3 m and 1.2 m (the player's half).
+- The paddle follows its target with exponential easing (0.07 s).
+- It tilts with velocity, and its shadow sits on the table beneath it.
+- It's drawn at **80% opacity**, and the ball is always drawn in front of it.
 
-### 6.5 AI opponent (Ahmed)
+### 6.6 AI opponent (Bot)
 
-- Tracks the predicted landing `x` of the ball with a **reaction delay** (80–250 ms) and a **speed cap**.
-- Adds aim error that shrinks with difficulty: `error ~ N(0, σ)`.
-- Plays defensively: returns about 85% of fair balls at the start, rising toward about 95%.
-- **Difficulty ramp**: each point the player wins reduces `σ` and the delay slightly. Each point the AI wins loosens them (rubber-band so games stay close).
-- The opponent paddle uses the same tilt and hit animation as the player's.
+Bot tracks the predicted ball position with:
+- a **reaction delay** after the player hits,
+- a **lateral speed cap**,
+- a **tracking error** that grows with the distance it has to travel (0.14 m extra per meter),
+- **aim spread** and a **corner bias** that decide how wide it hits,
+- a gentle rubber-band effect that keeps games close.
+
+| Mode | Reaction | Tracking error (σ) | Speed cap | Return speed | Serve speed | Aim spread | Corner bias | Hit bonus |
+|---|---|---|---|---|---|---|---|---|
+| Easy | 260 ms | 0.09 m | 1.0 m/s | 3.6 m/s | 3.6 m/s | 0.35 | 15% | 0 |
+| Medium | 170 ms | 0.075 m | 1.4 m/s | 4.3 m/s | 4.1 m/s | 0.50 | 40% | 0.02 m |
+| Hard | 100 ms | 0.04 m | 1.9 m/s | 5.2 m/s | 4.7 m/s | 0.62 | 70% | 0.04 m |
+
+All three modes are beatable. This was checked with headless simulations, and Bot does miss on Hard.
 
 ---
 
@@ -219,181 +266,295 @@ Per fixed step (`dt = 1/120 s`, accumulate from `requestAnimationFrame`):
 
 | Input | Action |
 |---|---|
-| ← → ↑ ↓ (or A D W S) | Move the paddle left, right, toward the net, back |
-| Space | Serve, or restart after game over |
-| Mouse drag on paddle (Grab cursor) | Move the paddle freely |
-| Mouse move (optional toggle) | Paddle follows the pointer |
-
-The cursor over the paddle shows `grab`, and `grabbing` while pressed. Draw the red `Grab` pill label next to the paddle on hover or drag.
+| ← → ↑ ↓ (or A D W S) | Move the paddle left, right, toward the net and back |
+| Space | Serve, or play again after the game ends |
+| Mouse drag on the paddle | Move the paddle freely (cursor shows `grab` / `grabbing` and the red **You** label) |
+| M | Mute or unmute |
+| Esc | Does nothing. The mode can't be changed mid-match. |
 
 ### 7.2 Mobile
 
 | Input | Action |
 |---|---|
-| Touch and drag anywhere on the lower half | Moves the paddle (with a small offset above the finger so it stays visible) |
-| Tap | Serve, or restart |
-| Optional: drag up quickly | Swing for extra power |
+| Touch and drag on the paddle | Moves the paddle directly |
+| Touch and drag anywhere else | Moves the paddle relative to the finger (depth uses 0.6× gain) |
+| Tap | Serve, or play again |
 
 Implementation notes:
-- Use Pointer Events with `touch-action: none` on the canvas to stop page scroll and pinch.
-- Handle `pointercancel` and multi-touch by tracking a single active `pointerId`.
-- Show the hint caption by input type: desktop shows `Arrow keys to move · Space to serve`, and touch shows `Drag to move · Tap to serve`.
-- Add a first-gesture handler to unlock audio on iOS.
-- Use `viewport-fit=cover`, and lock to the safe area for the footer pill.
+- Pointer Events with `touch-action: none`, tracking a single active `pointerId`.
+- The drag is released on `pointercancel`, on `lostpointercapture`, and on a mouse move with no buttons pressed, so a grab never gets stuck.
+- The hint text changes with the input type: keyboard shows `Arrow keys to move · Space to serve`, and touch shows `Drag to move · Tap to serve`.
+- Audio unlocks on the first gesture (needed on iOS).
 
 ---
 
 ## 8. Rendering and Art Direction
 
-### 8.1 Palette (sampled from the frames)
+### 8.1 Palette
 
-| Token | Hex (approx.) | Use |
+| Token | Hex | Use |
 |---|---|---|
-| `--bg` | `#FFFFFF` | Page background |
-| `--table` | `#0A8CFF` | Table surface |
-| `--table-edge` | `#0070D6` | Table front thickness |
-| `--net` | `#8CCBFF` at 60% | Net band |
-| `--ink` | `#111111` | Outlines, net posts, numerals |
-| `--paddle-red` | `#D23B3B` | Player paddle |
-| `--paddle-blue` | `#3F78BE` | Opponent paddle |
-| `--bubble` | `#F23B3B` | Speech bubble and Grab label |
-| `--shadow` | `#0A4F99` at 45% | Paddle and ball shadow on the table |
-| `--muted` | `#8A8A8A` | Labels, caption, score dot |
+| `bg` | `#FFFFFF` | Page background |
+| `table` | `#0A8CFF` | Table surface |
+| `tableEdge` | `#0070D6` | Table front thickness |
+| `net` | `rgba(140, 203, 255, 0.6)` | Net band |
+| `ink` | `#111111` | Outlines, net posts, numerals |
+| `paddleRed` | `#D23B3B` | Player paddle, and the score tint when You score |
+| `paddleBlue` | `#3F78BE` | Bot's paddle, and the score tint when Bot scores |
+| `bubble` | `#F23B3B` | Speech bubble, the "You" label, and point messages |
+| `shadow` | `rgba(10, 79, 153, 0.45)` | Shadows on the table |
+| floor shadow | `#6b7280` | Ball shadow on the ground |
+| `muted` | `#8A8A8A` | Labels, caption, score dot |
 
-### 8.2 Hand-drawn look
+### 8.2 Typography
 
-- All outlines use a thick (about 4–6 px at design size), round-cap, round-join black stroke.
-- `sketch.ts` provides `wobblyPath(points, jitter)`, which applies a small, **seeded** per-vertex offset (about 1–1.5 px) so shapes feel hand-inked but don't shimmer every frame. Re-seed only on state changes.
-- The character head is a blobby closed path (about 10 control points, Catmull-Rom smoothed). Eyes are two small circles with pupils, and the mouth is an oval.
-- Paddle: rounded face, a white highlight arc at the upper left, a white handle with a black outline, and a small hand icon on the face as the grip affordance.
+Everything uses **SF Cartoonist Hand**. A type scale in CSS gives clear hierarchy:
+
+| Variable | Size | Used for |
+|---|---|---|
+| `--t-title` | 56 px | Modal titles ("Table Tennis", "You win!") |
+| `--t-heading` | 28 px | Final score, headings |
+| `--t-body` | 21 px | Subtitles, buttons |
+| `--t-label` | 17 px | Footer links, chips |
+| `--t-caption` | 15 px | Hints and the info badge |
+
+The canvas text (scoreboard, bubble, caption) uses the same family.
 
 ### 8.3 Draw order (back to front)
 
 1. Background and scoreboard
-2. Opponent character and speech bubble
-3. Opponent paddle (and its shadow)
-4. Table surface, lines and front edge
-5. Ball shadow, then the ball if `z > net` (far side)
-6. Net band, posts and cord
-7. Ball if `z ≤ net` (near side)
-8. Player paddle shadow, then the player paddle
-9. `Grab` tooltip
-10. Caption (HTML or canvas) and footer pill (HTML)
+2. Bot and its speech bubble
+3. Bot's paddle and shadow
+4. Ball, if it has dropped behind the far end of the table (so the table hides it)
+5. Table surface, lines and front edge
+6. Ball shadow, then the ball if it's on the far side of the net
+7. Net
+8. Player paddle shadow, then the player paddle at 80% opacity
+9. Ball if it's on the near side of the net, always in front of the player paddle
+10. The red **You** tooltip (mouse only)
+11. Caption, then the HTML footer pill
 
 ### 8.4 Animations
 
 | Element | Animation |
 |---|---|
-| Score numeral | On change: a quick scale pop (1 → 1.2 → 1 over 250 ms) |
-| Speech bubble | Pop in with a small scale and overshoot, hold about 0.9 s, fade out over 0.3 s |
-| Opponent head | Slide in x toward the ball (easing), a gentle bob with a sine of about 2–3 px, and an expression swap with a 1-frame squash |
-| Paddles | Tilt with velocity, squash on hit |
-| Ball | Squash on bounce, and a faint motion trail (3 ghost frames at 20%, 12%, 6% alpha) at high speed |
-| Net | A small shimmer when the ball touches it |
+| Score numeral | When a point is scored, the number scales in with a pop, is briefly tinted **red (You)** or **blue (Bot)** so it's clear who scored, then fades back to black |
+| "+1" | A white "+1" with a dark outline slides up from the scorer's number and fades out |
+| Speech bubble | Pops in with overshoot, holds about 0.9 s, fades out over 0.3 s |
+| Bot's head | Slides toward the ball, bobs gently, and swaps expressions |
+| Paddles | Tilt with velocity |
+| Ball | A tapered motion-blur streak behind it when it moves fast. After a point, it falls, bounces on the ground and rolls to a stop. |
+| Net | Shimmers briefly when the ball hits it |
+| Screen | A small shake when the player hits (off with reduced motion) |
 
 ### 8.5 Speech bubble lines
 
-**[Assumption]** Short, reaction-based lines. Keep to one or two words.
-
+- Player returns the ball (sometimes): `Hey!`, `Whoa!`
 - Player scores: `Hey!`, `Ouch!`, `Nice!`
-- AI scores: `Ha!`, `Gotcha!`
-- Net or fault: `Oops!`
+- Bot faults (out, net, fault): `Oops!`
+- Bot scores: `Ha!`, `Gotcha!`
+
+### 8.6 Net design
+
+Redesigned to match the reference: a translucent light-blue band with a thick black top cord, a thinner bottom line, and slim black posts that rise slightly above the cord and extend down below the table edge. There's no mesh pattern.
 
 ---
 
-## 9. HUD, Copy and Footer
+## 9. HUD, Overlays, Copy and Footer
 
-- Scoreboard: `[You] · [Opponent]` in a large serif (about 56 px on desktop, scaling down to about 40 px on small phones), with labels in 11–12 px grey.
-- Caption under the table (see §7.2 for the touch variant).
-- **Footer pill**: a rounded pill with a soft shadow, holding three items separated by thin vertical dividers: an email (serif), `Instagram`, and `X`. **Replace these with your own details and links.** The reference shows another creator's contact info, so don't ship it as is.
-- The opponent name (`Ahmed` in the frames) should be a config value. **Use your own name or character name.**
+### 9.1 Scoreboard
+- `[You] · [Bot]`, big and bold, placed slightly higher than in the reference.
+- The numbers are positioned from their measured widths so they stay centered around the dot.
 
-> **Originality note:** Build your own character art and name. The frames are a reference for layout, motion and feel, so don't copy the original character drawing or the creator's branding.
+### 9.2 Caption and point messages
+- Under the table, a grey hint shows serve and move instructions, or "Bot to serve".
+- When a point ends, the result shows in **red, in the footer font**: `Bot missed`, `Missed!`, `Net!`, `Out!`, `Double bounce` or `Fault`.
+
+### 9.3 Start screen
+- A **crossed red and blue bats** icon at the top (no ball).
+- Title: **Table Tennis**. Subtitle: *You vs Bot · first to 11, win by 2*.
+- Three buttons: **Easy**, **Medium**, **Hard** (names only, no subheadings).
+- A blue **info badge** with an info icon and the controls hint.
+
+### 9.4 In-game controls (top corner)
+- A static chip shows the current mode. It isn't clickable, because the mode is locked for the match.
+- A mute button. The mute setting is saved in `localStorage` under `tt-muted`.
+
+### 9.5 Game-over modal
+- Title (`You win!` or `Bot wins`) and the final score.
+- Two **equal-width** buttons: **Play again** (same mode) and **Change difficulty** (back to the start screen).
+- Tapping outside the buttons, or pressing Space, also plays again.
+
+### 9.6 Footer pill
+`Instagram │ X │ LinkedIn`, linking to:
+- Instagram: https://www.instagram.com/girishedge_/
+- X: https://x.com/_girishedge_?s=11
+- LinkedIn: https://www.linkedin.com/in/girish-shedge-9337571b8/
+
+> **Originality note:** The character, its name (Bot) and the branding are original. The frames were only a reference for layout, motion and feel.
 
 ---
 
 ## 10. Audio
 
-Short synthesized sounds, all through one `AudioContext` with a master gain and a mute toggle (`M` key, and a small speaker icon on mobile):
+Synthesized sounds through one `AudioContext` with a master gain. **Sound is on by default.** Press `M` or the speaker button to mute.
 
 | Event | Sound |
 |---|---|
-| Paddle hit | A short, bright "tok" (a 600–900 Hz blip, 40 ms) |
-| Table bounce | A softer "tick" (400 Hz, 25 ms) |
+| Serve and paddle hit | A short, bright "tok" |
+| Table bounce | A softer "tick" |
 | Net touch | A dull thud |
 | Point won | A rising two-note chime |
 | Point lost | A falling two-note tone |
+| Match won or lost | A longer win or lose jingle |
 
-Start the context only after the first user gesture.
-
----
-
-## 11. Responsive Behavior Checklist
-
-- [ ] Canvas scales to fit any viewport without scroll, and the page never scrolls.
-- [ ] Table and paddles are fully visible in portrait at 360 × 640 up to 1440 × 900 and beyond.
-- [ ] The paddle touch target is at least 44 px, and the drag point sits above the finger.
-- [ ] The footer pill wraps cleanly (smaller font) below 380 px and respects the safe-area inset.
-- [ ] Orientation change keeps the game state and recomputes the layout.
-- [ ] `devicePixelRatio` scaling is handled on resize and on moving between monitors.
-- [ ] The loop pauses on `visibilitychange` (tab hidden), and resumes without a time jump.
-- [ ] `prefers-reduced-motion` turns off screen shake and ball trails.
+The context starts only after the first user gesture.
 
 ---
 
-## 12. Build Plan (Milestones)
+## 11. Responsive and Accessibility Checklist
 
-1. **Scaffold**: Vite and TypeScript, canvas, resize and DPR handling, the fixed-timestep loop.
-2. **Static scene**: projection, table, net, scoreboard, caption and footer pill matching the frames.
-3. **Player paddle**: keyboard and pointer-drag movement, tilt, shadow and `Grab` tooltip.
-4. **Ball physics**: serve, gravity, table bounce, net, and the paddle hit.
-5. **Opponent AI**: tracking, return logic, and difficulty ramp.
-6. **Scoring and rules**: points, server rotation, win condition, game over and restart.
-7. **Character and polish**: expressions, speech bubbles, wobbly strokes, squash and stretch.
-8. **Mobile**: touch control tuning, portrait layout, safe areas, audio unlock.
-9. **Audio and settings**: sounds, mute, optional difficulty select.
-10. **QA and deploy**: device testing, performance pass, static deploy.
+- [x] Canvas scales to fit any viewport, and the page never scrolls.
+- [x] Portrait and landscape layouts.
+- [x] Single-pointer touch handling with a relative drag mode.
+- [x] The footer pill respects the safe-area inset.
+- [x] Orientation change keeps the game state and recomputes the layout.
+- [x] `devicePixelRatio` scaling on resize.
+- [x] The loop pauses when the tab is hidden and resumes without a time jump.
+- [x] `prefers-reduced-motion` turns off screen shake and the ball's motion streak.
+
+---
+
+## 12. Build History and Updates
+
+### v1.0 — First release (commit `fd19fdd`)
+Built from the spec and the reference frames, with these choices:
+- Vite and TypeScript in the workspace root.
+- A difficulty selector on the start screen (Easy, Medium, Hard).
+- First to 11, win by 2.
+- One original opponent character, **Bot**.
+- Full 2D touch drag on mobile (left, right and depth).
+- Sound on by default.
+- The old `project.md` was deleted.
+
+Footer and score update:
+- Removed the placeholder email from the footer.
+- Added Girish's Instagram, X and LinkedIn links.
+- Made the score big and bold, and moved it slightly up.
+
+Published:
+- Pushed to GitHub as the public repo `table-tennis`, without the reference frames.
+- Hosted on Vercel.
+
+### v1.1 — Font and type hierarchy (commit `3f0800a`)
+- Switched every piece of text to **SF Cartoonist Hand**, self-hosted from `public/fonts/`.
+- Added a CSS type scale (title, heading, body, label, caption) for a clear text hierarchy.
+
+### v1.2 — UI and gameplay polish (commit `c0c32c6`)
+1. The game-over buttons **Play again** and **Change difficulty** are now the same width.
+2. Start screen changes:
+   - removed the subheadings under Easy, Medium and Hard;
+   - the icon is now a red and a blue bat crossed in an X, without the ball;
+   - the controls hint is an info badge with an info icon.
+3. Hovering over your paddle shows **You** instead of "Grab".
+4. Point messages (`Bot missed`, `Missed!`, `Net!`, etc.) are red and use the footer font.
+5. The difficulty can't be changed once a match has started.
+6. After a point, the ball falls to the ground, bounces and rolls to a stop.
+7. A motion-blur streak trails the ball when it moves fast.
+8. The ball is always drawn in front of your paddle, and your paddle is slightly transparent.
+9. The net was redesigned to match the reference.
+10. When someone scores:
+    - a white **+1** slides up and fades out;
+    - the score scales in and briefly turns **red (You)** or **blue (Bot)**.
+
+### Domain update
+- Added the custom address **[tabel-tennis.vercel.app](https://tabel-tennis.vercel.app)**. `table-tennis.vercel.app` was already taken by another Vercel account.
+
+### v2.0 — Online multiplayer (commit `2a5efb0`, 14 Oct 2026)
+Built on branch `multiplayer` and merged into `main`. Full spec, task list and known gaps live in `TT multiplayer PRD.md`.
+- Host a room and share a link or a 4-letter code; a friend joins on desktop or phone with no sign-up.
+- The host's browser runs the match; a Cloudflare Worker relay (`server/`) forwards messages between the two players.
+- Each player sees themselves at the near end with the red paddle and the friend's name on the scoreboard.
+- Reconnect, rematch, leave, emotes and message screens for every failure case.
+- Start screen gains an "or play a friend" divider, **Host a game** and **Join with code** buttons, and an editable name line. They are hidden when no relay is configured, so vs-Bot looks exactly as before.
+- The paddle code was refactored into controllers. A seeded vs-Bot simulation (golden test) proves vs-Bot plays exactly as before.
+- Design pass: all MP screens use the existing font, type scale, palette and components. Keyboard focus ring, screen-reader announcements and reduced motion were checked.
 
 ---
 
 ## 13. Acceptance Criteria
 
-- The first frame resembles the reference: white page, a blue perspective table with a translucent net, red player paddle, blue opponent paddle, a floating character, serif scoreboard, caption and footer pill.
-- A full game to 11 can be played start to finish on both desktop (keys and mouse) and a phone (touch) with no layout breakage.
-- Ball size, paddle size and shadows visibly scale with depth.
-- The paddle tilts with movement, and the character changes expression with a `Hey!` bubble when the player returns or scores.
-- The game holds **60 fps** on a mid-range phone and has no page scroll or zoom during play.
-- No external image assets are required (everything is drawn in code), and the total bundle is under about 150 KB gzipped.
+- [x] The first frame resembles the reference: white page, blue perspective table, translucent net, red and blue paddles, a floating character, scoreboard, caption and footer pill.
+- [x] A full game to 11 can be played start to finish on desktop and on a phone.
+- [x] Ball size, paddle size and shadows scale with depth.
+- [x] The paddle tilts with movement, and the character reacts with expressions and speech bubbles.
+- [x] No page scroll or zoom during play.
+- [x] No external image assets: everything is drawn in code. The bundle is about 12.7 KB gzipped.
 
 ---
 
-## 14. Tunable Constants (`config.ts`)
+## 14. Tunable Constants (`src/config.ts`)
+
+Key values (see the file for the full list):
 
 ```ts
 export const CONFIG = {
   winScore: 11,
   winBy: 2,
-  opponentName: "Opponent",     // change me
+  opponentName: "Bot",
+  playerName: "You",
+
   gravity: 9.8,
   restitution: 0.85,
-  netHeight: 0.1525,
   tableW: 1.525,
   tableL: 2.74,
-  paddleSmooth: 0.12,           // seconds
-  aiReactionMs: [80, 250],
-  aiErrorSigma: [0.02, 0.12],   // meters, hard → easy
+  netHeight: 0.1525,
+  floorY: -0.76,
+
+  paddleSmooth: 0.07,      // seconds
+  paddleZMin: 0.3,
+  paddleZMax: 1.2,
+  playerShotSpeed: 5.0,
+
+  aiPaddleHitR: 0.09,      // plus the difficulty's hitBonus
+  aiDistanceError: 0.14,   // extra tracking error per meter traveled
+
   bubbleHoldMs: 900,
-  pointFreezeMs: 1200,
-  footer: { email: "you@example.com", instagram: "#", x: "#" },
+  pointFreezeMs: 1600,
+
+  footer: {
+    instagram: "https://www.instagram.com/girishedge_/",
+    x: "https://x.com/_girishedge_?s=11",
+    linkedin: "https://www.linkedin.com/in/girish-shedge-9337571b8/",
+  },
+
+  difficulty: { easy: { ... }, medium: { ... }, hard: { ... } }, // see §6.6
 };
 ```
 
 ---
 
-## 15. Open Questions
+## 15. Decisions (formerly Open Questions)
 
-1. Target score: is 11 (win by 2) right, or something shorter like 5 or 7?
-2. Should the paddle move in depth (toward the net) on mobile, or only left and right for simplicity?
-3. Do you want a difficulty selector, or a single adaptive mode?
-4. Do you want your own character, or a few selectable opponents?
-5. Is sound on by default, or muted until the user turns it on?
+| Question | Decision |
+|---|---|
+| Target score | First to 11, win by 2 |
+| Should the paddle move in depth on mobile? | Yes. Full 2D drag. |
+| Difficulty selector or adaptive mode? | A selector on the start screen (Easy, Medium, Hard), locked for the match, with a light rubber-band effect inside each mode |
+| Own character or several opponents? | One original character, Bot |
+| Sound on or muted by default? | On by default, and the mute choice is remembered |
+
+## 16. Ideas for Later
+
+- Local two-player on one device. (Online play is in v2.0, see `TT multiplayer PRD.md`.)
+- More opponents with different personalities and play styles.
+- Match statistics (longest rally, points won on serve).
+- A share card with the final score.
+
+---
+
+## 17. Multiplayer (v2.0)
+
+`TT multiplayer PRD.md` owns everything online: rooms, lobby, join flows, network, the relay server and multiplayer-only behavior. This file owns rules, physics, constants, rendering, art direction, Bot's AI, and the vs-Bot screens and controls.
+
+Where the two overlap (start screen, top-corner controls, game states, hotkeys), this file describes vs-Bot mode and the PRD lists the "MP addition" items. In multiplayer the PRD wins; in vs-Bot this file wins. Whenever code changes behavior, update the file that owns it.
