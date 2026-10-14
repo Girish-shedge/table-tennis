@@ -13,6 +13,9 @@ import { Hud } from "./render/hud";
 import { AI_STYLE, PLAYER_STYLE, drawPaddle, drawPaddleShadow, paddleScreen } from "./render/paddle";
 import { Projection, computeLayout, type Layout } from "./render/projection";
 import { drawNet, drawTable } from "./render/table";
+import { net } from "./net/client";
+import { OnlineMatch } from "./net/hostSim";
+import { truncateName } from "./strings";
 import { mountMultiplayer } from "./ui/screens";
 
 // ---- DOM ------------------------------------------------------------------
@@ -50,6 +53,9 @@ let shake = 0;
 let netShimmer = 0;
 
 let onEscape = () => {};
+let online: OnlineMatch | null = null;
+let mpYou = "";
+let mpThem = "";
 
 const input = new Input(canvas, {
   toWorld: (sx, sy) => P.unprojectToPlane(sx, sy, CONFIG.paddleHover),
@@ -66,7 +72,8 @@ const input = new Input(canvas, {
   paddleTarget: () => ({ ...game.player.target }),
   onPrimary: () => {
     audio.unlock();
-    game.primary();
+    if (online) online.primary();
+    else game.primary();
   },
   onMute: () => setMuted(!audio.muted),
   onEscape: () => onEscape(),
@@ -155,6 +162,10 @@ game.on((e: GameEvent) => {
       break;
     }
     case "gameover": {
+      if (game.externalSim) {
+        overlayOver.hidden = true;
+        break;
+      }
       const youWon = e.winner === "player";
       overTitle.textContent = youWon ? "You win!" : `${CONFIG.opponentName} wins`;
       overScore.textContent = `${e.score.player} · ${e.score.ai}`;
@@ -217,14 +228,24 @@ $("over-hint").textContent = input.kind === "touch" ? "Tap to play again" : "Spa
 
 drawCardArt();
 
-mountMultiplayer({
+const mp = mountMultiplayer({
   unlock: () => audio.unlock(),
-  onMatch: () => {
+  onMatch: (session) => {
     overlayStart.hidden = true;
     overlayOver.hidden = true;
     controls.hidden = false;
+    mpYou = session.myName;
+    mpThem = session.peerName || "Friend";
+    online?.stop();
+    online = new OnlineMatch(game, net, session.role === "guest" ? "guest" : "host", (youWon, you, them) => {
+      mp?.noteResult(youWon, you, them);
+    });
   },
   onLeave: () => {
+    online?.stop();
+    online = null;
+    mpYou = "";
+    mpThem = "";
     controls.hidden = true;
     showMenu();
   },
@@ -247,7 +268,8 @@ function headAnchor() {
 
 function captionText(): string {
   const touch = input.kind === "touch";
-  if (game.phase === "SERVE" && game.server === "ai") return `${CONFIG.opponentName} to serve`;
+  const them = mpThem ? truncateName(mpThem) : CONFIG.opponentName;
+  if (game.phase === "SERVE" && game.server === "ai") return `${them} to serve`;
   if (game.phase === "SERVE") return touch ? "Drag to move · Tap to serve" : "Arrow keys to move · Space to serve";
   if (game.phase === "GAME_OVER") return "";
   return touch ? "Drag to move" : "Arrow keys to move · Space to serve";
@@ -265,7 +287,14 @@ function render() {
   }
 
   // 1. Scoreboard.
-  hud.drawScore(ctx, layout, game.score, game.now);
+  hud.drawScore(
+    ctx,
+    layout,
+    game.score,
+    game.now,
+    mpYou ? truncateName(mpYou) : CONFIG.playerName,
+    mpThem ? truncateName(mpThem) : CONFIG.opponentName,
+  );
 
   if (game.phase !== "MENU") {
     const ball = game.ball;
@@ -332,7 +361,10 @@ function frame(now: number) {
 
   game.keyAxis = input.axis();
   game.dragTarget = input.dragTarget;
-  if (!dev.paused) game.update(dt);
+  if (!dev.paused) {
+    if (online) online.frame(dt);
+    else game.update(dt);
+  }
 
   // Cursor feedback.
   canvas.style.cursor = input.grabbing ? "grabbing" : input.hovering ? "grab" : "default";

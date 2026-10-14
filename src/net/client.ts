@@ -6,8 +6,10 @@ export type NetHandler = (msg: Record<string, unknown> | string) => void;
 /** One socket for the open room. Screens and the match both listen here. */
 export class NetClient {
   transport: Transport | null = null;
+  rttMs = 80;
   private handlers = new Set<NetHandler>();
   private pingTimer = 0;
+  private pingAt = 0;
 
   on(handler: NetHandler) {
     this.handlers.add(handler);
@@ -21,6 +23,7 @@ export class NetClient {
     await transport.ready;
     transport.onMessage((data) => {
       if (data === "pong" || data === "ping") {
+        if (data === "pong" && this.pingAt) this.rttMs = Math.max(1, performance.now() - this.pingAt);
         for (const handler of this.handlers) handler(data);
         return;
       }
@@ -34,7 +37,10 @@ export class NetClient {
     transport.onClose(() => {
       for (const handler of this.handlers) handler({ t: "socket_closed" });
     });
-    this.pingTimer = window.setInterval(() => transport.send("ping"), 2000);
+    this.pingTimer = window.setInterval(() => {
+      this.pingAt = performance.now();
+      transport.send("ping");
+    }, 2000);
   }
 
   send(msg: Record<string, unknown>) {

@@ -26,7 +26,14 @@ export class Hud {
     this.flashAt = now;
   }
 
-  drawScore(ctx: CanvasRenderingContext2D, L: Layout, score: { player: number; ai: number }, now: number) {
+  drawScore(
+    ctx: CanvasRenderingContext2D,
+    L: Layout,
+    score: { player: number; ai: number },
+    now: number,
+    youName = CONFIG.playerName,
+    themName = CONFIG.opponentName,
+  ) {
     const s = L.box.s;
     const cx = L.box.x + L.box.w / 2;
     const y = L.scoreY;
@@ -51,8 +58,8 @@ export class Hud {
 
     ctx.font = `700 ${Math.round(15 * s)}px ${FONTS.sans}`;
     ctx.fillStyle = COLORS.muted;
-    ctx.fillText(CONFIG.playerName, px, y + 22 * s);
-    ctx.fillText(CONFIG.opponentName, ax, y + 22 * s);
+    ctx.fillText(youName, px, y + 22 * s);
+    ctx.fillText(themName, ax, y + 22 * s);
     ctx.restore();
   }
   private flashAlpha(now: number): number {

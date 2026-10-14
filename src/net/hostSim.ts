@@ -1,0 +1,161 @@
+import { INPUT_HZ, INPUT_KEEPALIVE_HZ, SNAPSHOT_HZ } from "../../shared/constants";
+import { CONFIG } from "../config";
+import type { Game } from "../game/state";
+import { FixedClock, forgivenessMs } from "./clock";
+import type { NetClient } from "./client";
+import { GuestView } from "./guestView";
+import { mirrorX, mirrorZ } from "./mirror";
+
+interface Sample {
+  t: number;
+  x: number;
+  z: number;
+}
+
+function clampFar(x: number, z: number): { x: number; z: number } {
+  const xMax = CONFIG.tableW / 2 + CONFIG.paddleXMargin;
+  const zMin = CONFIG.tableL - CONFIG.paddleZMax;
+  const zMax = CONFIG.tableL - CONFIG.paddleZMin;
+  return {
+    x: Math.min(xMax, Math.max(-xMax, x)),
+    z: Math.min(zMax, Math.max(zMin, z)),
+  };
+}
+
+/**
+ * Host runs the match and sends snapshots. Guest only eases its own paddle
+ * and draws interpolated snapshots, mirrored so it stands at the near end.
+ */
+export class OnlineMatch {
+  private clock = new FixedClock();
+  private view = new GuestView();
+  private samples: Sample[] = [];
+  private target: { x: number; z: number } | null = null;
+  private snapAcc = 0;
+  private inputAcc = 0;
+  private lastSent = { x: 999, z: 999 };
+  private seq = 0;
+  private tick = 0;
+  private reported = false;
+  private off: () => void;
+
+  constructor(
+    private game: Game,
+    private net: NetClient,
+    readonly role: "host" | "guest",
+    private onOver: (youWon: boolean, you: number, them: number) => void,
+  ) {
+    this.game.enterOnline(role);
+    this.off = this.net.on((msg) => this.onNet(msg));
+  }
+
+  stop() {
+    this.off();
+    this.game.leaveOnline();
+  }
+
+  frame(dt: number) {
+    if (this.role === "host") {
+      this.clock.advance(dt, (step) => {
+        const forgiven = this.rewind();
+        this.game.setFarTarget(this.target, forgiven);
+        this.game.hostStep(step);
+      });
+      this.snapAcc += dt;
+      const period = 1 / SNAPSHOT_HZ;
+      if (this.snapAcc >= period) {
+        this.snapAcc = 0;
+        this.sendState();
+      }
+      return;
+    }
+    this.game.update(dt);
+    this.view.apply(this.game, performance.now());
+    this.inputAcc += dt;
+    const due = Math.abs(this.game.player.target.x - this.lastSent.x) > 0.002 || Math.abs(this.game.player.target.z - this.lastSent.z) > 0.002;
+    const period = due ? 1 / INPUT_HZ : 1 / INPUT_KEEPALIVE_HZ;
+    if (this.inputAcc >= period) {
+      this.inputAcc = 0;
+      this.sendInput(false);
+    }
+  }
+
+  primary() {
+    if (this.role === "host") {
+      this.game.primary();
+      return;
+    }
+    if (this.game.phase === "SERVE" && this.game.server === "player") this.sendInput(true);
+  }
+
+  private sendInput(serve: boolean) {
+    const x = mirrorX(this.game.player.target.x);
+    const z = mirrorZ(this.game.player.target.z);
+    this.lastSent = { x: this.game.player.target.x, z: this.game.player.target.z };
+    this.net.send({ t: "input", seq: ++this.seq, ts: Date.now(), x, z, serve });
+  }
+
+  private sendState() {
+    const b = this.game.ball;
+    const g = this.game;
+    this.net.send({
+      t: "state",
+      tick: ++this.tick,
+      phase: g.phase,
+      ball: { x: b.pos.x, y: b.pos.y, z: b.pos.z, vx: b.vel.x, vy: b.vel.y, vz: b.vel.z },
+      hp: { x: g.player.pos.x, z: g.player.pos.z, tilt: g.player.tilt },
+      gp: { x: g.aiPaddle.pos.x, z: g.aiPaddle.pos.z, tilt: g.aiPaddle.tilt },
+      score: g.score,
+      server: g.server,
+      serveMs: 0,
+    });
+    if (g.phase === "GAME_OVER" && !this.reported) {
+      this.reported = true;
+      this.net.send({ t: "match_over", score: g.score });
+      this.onOver(g.score.player >= g.score.ai, g.score.player, g.score.ai);
+    }
+  }
+
+  private onNet(msg: Record<string, unknown> | string) {
+    if (typeof msg === "string") return;
+    if (this.role === "guest" && (msg.t === "state" || msg.t === "state_sync")) {
+      this.view.push(msg, performance.now());
+      if (msg.phase === "GAME_OVER" && !this.reported) {
+        this.reported = true;
+        const score = msg.score as { player: number; ai: number };
+        this.onOver(score.ai >= score.player, score.ai, score.player);
+      }
+      return;
+    }
+    if (this.role === "host" && msg.t === "input") {
+      const next = clampFar(Number(msg.x), Number(msg.z));
+      if (!Number.isFinite(next.x) || !Number.isFinite(next.z)) return;
+      this.target = this.limitSpeed(next);
+      this.samples.push({ t: this.game.now, x: this.target.x, z: this.target.z });
+      const cutoff = this.game.now - 500;
+      while (this.samples.length && this.samples[0].t < cutoff) this.samples.shift();
+      if (msg.serve) this.game.queueFarServe();
+    }
+  }
+
+  private limitSpeed(next: { x: number; z: number }): { x: number; z: number } {
+    const prev = this.target ?? this.game.aiPaddle.pos;
+    const dx = next.x - prev.x;
+    const dz = next.z - prev.z;
+    const dist = Math.hypot(dx, dz);
+    const max = 3;
+    if (dist <= max) return next;
+    const k = max / dist;
+    return clampFar(prev.x + dx * k, prev.z + dz * k);
+  }
+
+  private rewind(): { x: number; z: number } | null {
+    if (!this.target) return null;
+    const when = this.game.now - forgivenessMs(this.net.rttMs);
+    let chosen = this.samples[0];
+    for (const sample of this.samples) {
+      if (sample.t <= when) chosen = sample;
+    }
+    return chosen ? { x: chosen.x, z: chosen.z } : this.target;
+  }
+}

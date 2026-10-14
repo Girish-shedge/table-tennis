@@ -1,7 +1,7 @@
 import { CONFIG, type Difficulty } from "../config";
 import { clamp, gaussian } from "../render/sketch";
 import { AI } from "./ai";
-import { AIController, LocalInput } from "./controllers";
+import { AIController, LocalInput, RemoteInput } from "./controllers";
 import {
   makeBall,
   makePaddle,
@@ -46,6 +46,12 @@ export class Game {
   /** Same Bot instance as `ai`. vs-Bot never swaps this out. */
   private aiController = new AIController(this.ai);
   private local = new LocalInput();
+  /** Far human. Unused while externalSim is false, so vs-Bot never eases this. */
+  private remote = new RemoteInput();
+  /** Host-authoritative or guest-rendered. vs-Bot leaves this false. */
+  externalSim = false;
+  mpRole: "host" | "guest" | null = null;
+  private forgivenFar: { x: number; z: number } | null = null;
   aiPaddle: Paddle = makePaddle(0, CONFIG.aiPaddleHover, CONFIG.aiPaddleZ);
 
   /** Simulation clock in ms. */
@@ -124,6 +130,10 @@ export class Game {
 
   /** Space / click / tap. */
   primary() {
+    if (this.externalSim) {
+      if (this.mpRole === "host" && this.phase === "SERVE" && this.server === "player") this.serve("player");
+      return;
+    }
     if (this.phase === "SERVE" && this.server === "player") this.serve("player");
     else if (this.phase === "GAME_OVER") this.startMatch(this.difficulty);
   }
@@ -160,6 +170,10 @@ export class Game {
   // ---- Update -----------------------------------------------------------
 
   update(frameDt: number) {
+    if (this.externalSim) {
+      if (this.mpRole === "guest") this.easeOnly(frameDt);
+      return;
+    }
     this.accumulator += Math.min(frameDt, 0.1);
     while (this.accumulator >= FIXED_DT) {
       this.accumulator -= FIXED_DT;
@@ -260,8 +274,12 @@ export class Game {
     // Paddle hits (only the receiver may hit).
     if (receiver === "player" && paddleCrossing(b, this.player, "player", CONFIG.paddleHitR)) {
       this.playerHit();
-    } else if (receiver === "ai" && paddleCrossing(b, this.aiPaddle, "ai", CONFIG.aiPaddleHitR + this.ai.params.hitBonus)) {
-      this.aiHit();
+    } else if (receiver === "ai") {
+      if (this.externalSim) {
+        if (this.farHumanReached(b)) this.humanFarHit();
+      } else if (paddleCrossing(b, this.aiPaddle, "ai", CONFIG.aiPaddleHitR + this.ai.params.hitBonus)) {
+        this.aiHit();
+      }
     }
 
     // Safety: ball escaped far away.
@@ -304,5 +322,145 @@ export class Game {
     this.hitCounter++;
     (by === "player" ? this.player : this.aiPaddle).squash = 1;
     this.emit({ type: "hit", by, speed });
+  }
+
+  // ---- Online (never called in vs-Bot) ----------------------------------
+
+  enterOnline(role: "host" | "guest") {
+    this.externalSim = true;
+    this.mpRole = role;
+    this.score = { player: 0, ai: 0 };
+    this.firstServer = "player";
+    this.server = "player";
+    this.lastPoint = null;
+    this.player.pos.x = 0;
+    this.player.pos.y = CONFIG.paddleHover;
+    this.player.pos.z = 0.35;
+    this.player.target = { x: 0, z: 0.35 };
+    const farZ = CONFIG.tableL - 0.35;
+    this.aiPaddle.pos.x = 0;
+    this.aiPaddle.pos.y = CONFIG.paddleHover;
+    this.aiPaddle.pos.z = farZ;
+    this.aiPaddle.target = { x: 0, z: farZ };
+    this.ball = makeBall();
+    this.ball.visible = true;
+    this.holdBallAboveServer();
+    this.setPhase("SERVE");
+  }
+
+  leaveOnline() {
+    this.externalSim = false;
+    this.mpRole = null;
+    this.forgivenFar = null;
+    this.openMenu();
+  }
+
+  /** Guest paddle target in host coordinates, already clamped. */
+  setFarTarget(target: { x: number; z: number } | null, forgiven: { x: number; z: number } | null) {
+    this.remote.target = target;
+    this.forgivenFar = forgiven;
+  }
+
+  queueFarServe() {
+    if (this.mpRole === "host" && this.phase === "SERVE" && this.server === "ai") this.serveHumanFar();
+  }
+
+  /** One 120 Hz step of the host match. Does not run the Bot. */
+  hostStep(dt: number) {
+    if (!this.externalSim || this.mpRole !== "host") return;
+    if (this.phase === "MENU") return;
+    this.now += dt * 1000;
+    this.updatePlayerPaddle(dt);
+    this.remote.apply(this.aiPaddle, dt);
+    switch (this.phase) {
+      case "SERVE":
+        this.holdBallAboveServer();
+        break;
+      case "RALLY":
+        this.stepRally(dt);
+        break;
+      case "POINT": {
+        stepBall(this.ball, dt, false);
+        this.ball.trail.unshift({ ...this.ball.pos });
+        if (this.ball.trail.length > 24) this.ball.trail.pop();
+        if (this.now - this.phaseAt > CONFIG.pointFreezeMs) {
+          const w = winner(this.score);
+          if (w) {
+            this.ball.visible = false;
+            this.emit({ type: "gameover", winner: w, score: this.score });
+            this.setPhase("GAME_OVER");
+          } else {
+            this.beginServe();
+          }
+        }
+        break;
+      }
+      case "GAME_OVER":
+        break;
+    }
+  }
+
+  private easeOnly(frameDt: number) {
+    this.accumulator += Math.min(frameDt, 0.1);
+    while (this.accumulator >= FIXED_DT) {
+      this.accumulator -= FIXED_DT;
+      this.now += FIXED_DT * 1000;
+      if (this.phase === "MENU") continue;
+      this.updatePlayerPaddle(FIXED_DT);
+    }
+  }
+
+  private farHumanReached(ball: Ball): boolean {
+    const paddle = this.aiPaddle;
+    const savedX = paddle.pos.x;
+    const savedZ = paddle.pos.z;
+    if (this.forgivenFar) {
+      paddle.pos.x = this.forgivenFar.x;
+      paddle.pos.z = this.forgivenFar.z;
+    }
+    const hit = paddleCrossing(ball, paddle, "ai", CONFIG.paddleHitR);
+    paddle.pos.x = savedX;
+    paddle.pos.z = savedZ;
+    return hit;
+  }
+
+  /** Far human's shot, solved with the same math as the near player, then mirrored back. */
+  private humanFarHit() {
+    const b = this.ball;
+    const p = this.forgivenFar ?? this.aiPaddle.pos;
+    const mx = -b.pos.x;
+    const mz = CONFIG.tableL - b.pos.z;
+    const px = -p.x;
+    const pvx = -this.aiPaddle.vel.x;
+    const pvz = -this.aiPaddle.vel.z;
+    const offset = mx - px;
+    const wobble = gaussian() * 0.05;
+    const tx = clamp(mx * 0.4 + offset * 2.6 + pvx * 0.26 + wobble, -0.9, 0.9);
+    const forward = clamp(pvz, 0, 2.5);
+    const tz = clamp(1.8 + Math.random() * 0.5 + forward * 0.15, 1.6, 2.55);
+    const speed = CONFIG.playerShotSpeed + forward * 0.6 + Math.abs(pvx) * 0.1;
+    const vel = solveShot({ x: mx, y: b.pos.y, z: mz }, tx, tz, speed);
+    b.vel = { x: -vel.x, y: vel.y, z: -vel.z };
+    b.pos.z = this.aiPaddle.pos.z - 0.01;
+    this.afterHit("ai", speed);
+  }
+
+  private serveHumanFar() {
+    const b = this.ball;
+    const p = this.aiPaddle;
+    const mx = -p.pos.x;
+    const tx = clamp(mx * 0.4 + (Math.random() - 0.5) * 0.5 + -p.vel.x * 0.15, -0.6, 0.6);
+    const tz = 1.85 + Math.random() * 0.5;
+    const speed = CONFIG.playerShotSpeed * 0.9 + clamp(-p.vel.z, 0, 2) * 0.5;
+    const vel = solveShot({ x: -b.pos.x, y: b.pos.y, z: CONFIG.tableL - b.pos.z }, tx, tz, speed);
+    b.vel = { x: -vel.x, y: vel.y, z: -vel.z };
+    b.lastHitter = "ai";
+    b.bouncedOn = null;
+    b.bounceCount = 0;
+    b.netHit = false;
+    this.hitCounter++;
+    p.squash = 1;
+    this.emit({ type: "serve", by: "ai" });
+    this.setPhase("RALLY");
   }
 }
