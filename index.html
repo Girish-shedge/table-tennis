@@ -19,11 +19,15 @@
       <span id="btn-mode" class="chip chip-static" title="Difficulty is locked for this match">
         <span id="mode-label">Medium</span>
       </span>
-      <button id="btn-conn" class="chip" type="button" data-testid="connection" hidden title="Connection">
-        <span id="conn-bars" aria-hidden="true">▮▮▮</span>
+      <button id="btn-conn" class="chip chip-conn" type="button" data-testid="connection" hidden title="Connection" aria-label="Connection" aria-expanded="false">
+        <svg id="conn-bars" class="bars" data-bars="3" viewBox="0 0 20 18" width="20" height="18" aria-hidden="true">
+          <rect class="bar b1" x="1" y="11" width="4.5" height="6" rx="1.4" />
+          <rect class="bar b2" x="7.75" y="6.5" width="4.5" height="10.5" rx="1.4" />
+          <rect class="bar b3" x="14.5" y="1" width="4.5" height="16" rx="1.4" />
+        </svg>
         <span id="conn-ping"></span>
       </button>
-      <button id="btn-mute" class="chip chip-icon" type="button" title="Mute (M)" aria-pressed="false">
+      <button id="btn-mute" class="chip chip-icon" type="button" title="Mute (M)" aria-label="Mute" aria-pressed="false">
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
           <path class="spk" d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" />
           <path class="wave" d="M16 8.5a4.5 4.5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
@@ -31,8 +35,12 @@
           <path class="mute-x" d="M16 9l5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
         </svg>
       </button>
-      <button id="btn-leave" class="chip chip-icon" type="button" data-testid="leave-match" hidden title="Leave">×</button>
-      <div id="emotes" hidden>
+      <button id="btn-leave" class="chip chip-icon" type="button" data-testid="leave-match" hidden title="Leave match" aria-label="Leave match">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" />
+        </svg>
+      </button>
+      <div id="emotes" role="group" aria-label="Emotes" hidden>
         <button class="chip" type="button" data-testid="emote-0" data-emote="0"></button>
         <button class="chip" type="button" data-testid="emote-1" data-emote="1"></button>
         <button class="chip" type="button" data-testid="emote-2" data-emote="2"></button>
@@ -60,13 +68,21 @@
             <span class="mode-name">Hard</span>
           </button>
         </div>
-        <div id="mp-entry" hidden>
-          <p id="mp-divider" class="hint" data-testid="mp-divider"></p>
+        <div id="mp-entry" class="mp-entry" hidden>
+          <p id="mp-divider" class="mp-divider" data-testid="mp-divider"></p>
           <div class="actions">
             <button id="btn-host" class="btn" type="button" data-testid="host-game"></button>
             <button id="btn-join" class="btn" type="button" data-testid="join-code"></button>
           </div>
-          <p class="hint"><span id="mp-playing-as"></span> <button id="btn-name" class="btn" type="button" data-testid="player-name"></button></p>
+          <p class="mp-name">
+            <span id="mp-playing-as"></span>
+            <button id="btn-name" class="mp-name-btn" type="button" data-testid="player-name" aria-label="Edit your name">
+              <span id="btn-name-text"></span>
+              <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+                <path d="M4 20l1-5L16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 2z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </p>
         </div>
         <p class="info-badge">
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
@@ -76,6 +92,19 @@
           </svg>
           <span id="start-hint">Arrow keys or drag to move · Space to serve</span>
         </p>
+      </div>
+    </div>
+
+    <!-- Name editor (multiplayer) -->
+    <div id="mp-name-dialog" class="overlay" hidden>
+      <div class="card mp-card" role="dialog" aria-modal="true" aria-labelledby="mp-name-title">
+        <h1 id="mp-name-title" class="mp-h"></h1>
+        <input id="mp-name-field" class="mp-field" type="text" maxlength="16" autocomplete="off" autocapitalize="words" spellcheck="false" aria-labelledby="mp-name-title" data-testid="name-field" />
+        <p id="mp-name-error" class="mp-warn" role="status"></p>
+        <div class="actions mp-actions mp-pair">
+          <button id="mp-name-save" class="btn primary" type="button" data-testid="name-save"></button>
+          <button id="mp-name-cancel" class="btn" type="button" data-testid="name-cancel"></button>
+        </div>
       </div>
     </div>
 
@@ -93,6 +122,8 @@
     </div>
 
     <div id="mp-root" hidden></div>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <div id="mp-live" class="sr-only" role="status" aria-live="polite"></div>
 
     <!-- Footer pill -->
     <footer class="footer">

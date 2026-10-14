@@ -409,8 +409,11 @@
   min-width: 0;
   max-width: 130px;
 }
+.mp-score {
+  --mp-num: var(--t-title);
+}
 .mp-score .num {
-  font-size: var(--t-title);
+  font-size: var(--mp-num);
   line-height: 1;
 }
 .mp-score .you .num {
@@ -428,7 +431,9 @@
   color: var(--mp-text);
 }
 .mp-score .dot {
-  align-self: center;
+  display: flex;
+  align-items: center;
+  height: var(--mp-num);
   color: var(--mp-text);
   font-size: var(--t-heading);
 }
@@ -599,8 +604,8 @@
   .btn.hero {
     font-size: 24px;
   }
-  .mp-score .num {
-    font-size: 44px;
+  .mp-score {
+    --mp-num: 44px;
   }
   #emotes .chip {
     padding: 0 9px;
@@ -611,6 +616,26 @@
   .code-input {
     width: 50px;
     height: 62px;
+  }
+}
+
+/* ---- Landscape: the emote tray becomes a column beside the table ---------- */
+@media (orientation: landscape) {
+  #emotes {
+    left: auto;
+    translate: none;
+    right: calc(12px + env(safe-area-inset-right));
+    top: 68px;
+    bottom: auto;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    width: 98px;
+  }
+  #emotes .chip {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
   }
 }
 
@@ -682,8 +707,29 @@
     width: 52px;
     font-size: 40px;
   }
-  .mp-score .num {
-    font-size: 40px;
+  .mp-score {
+    --mp-num: 40px;
+  }
+  .mp-split {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 24px;
+    align-items: center;
+    width: min(660px, 100%);
+  }
+  .mp-split > .mp-actions {
+    grid-column: 2;
+    grid-row: 1 / span 4;
+    margin-top: 0;
+  }
+  .mp-split > :not(.mp-actions) {
+    grid-column: 1;
+  }
+  .btn.hero {
+    min-height: 48px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    font-size: 24px;
   }
   .mp-ball {
     height: 48px;
@@ -693,17 +739,6 @@
     translate: none;
     bottom: calc(64px + env(safe-area-inset-bottom));
     max-width: 200px;
-  }
-  #emotes {
-    left: auto;
-    translate: none;
-    right: calc(12px + env(safe-area-inset-right));
-    top: 68px;
-    bottom: auto;
-    flex-direction: column;
-    flex-wrap: nowrap;
-    align-items: flex-end;
-    width: auto;
   }
 }
 
