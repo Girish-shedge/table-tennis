@@ -23,9 +23,10 @@ export class Input {
   dragTarget: { x: number; z: number } | null = null;
   /**
    * Shot power 0..1: how far the paddle has been pulled back (toward you) since the last reset.
-   * Pointer: screen distance dragged down from the highest point of the hold, so pulling past the
-   * back edge of the paddle's range still charges. Keys: how long ↓ / S has been held. Moving
-   * forward lowers it again; it holds when you let go, and resets after each hit or serve.
+   * Pointer: the longest drag down from the highest point of the hold, so pulling past the back
+   * edge of the paddle's range still charges. Keys: how long ↓ / S has been held. It only ever
+   * grows: moving forward to reach the ball (finger up, or ↑) keeps it, and so does letting go.
+   * It resets after each hit or serve, and at every point.
    */
   pull = 0;
   private pullAnchorY = 0;
@@ -90,9 +91,7 @@ export class Input {
   /** Per-frame keyboard part of the pull. */
   tickPull(dt: number) {
     if (this.activeId !== null) return;
-    const z = this.axis().z;
-    if (z < 0) this.pull = Math.min(1, this.pull + dt / Input.KEY_PULL_SECONDS);
-    else if (z > 0) this.pull = 0;
+    if (this.axis().z < 0) this.pull = Math.min(1, this.pull + dt / Input.KEY_PULL_SECONDS);
   }
 
   /** -1..1 per axis from the keyboard. */
@@ -162,7 +161,7 @@ export class Input {
     if (this.grabbing) {
       this.lastY = e.clientY;
       this.pullAnchorY = Math.min(this.pullAnchorY, e.clientY);
-      this.pull = Math.min(1, Math.max(0, (e.clientY - this.pullAnchorY) / this.pullPx));
+      this.pull = Math.min(1, Math.max(this.pull, (e.clientY - this.pullAnchorY) / this.pullPx));
       const world = this.cb.toWorld(e.clientX, e.clientY);
       this.dragTarget = this.relative
         ? {

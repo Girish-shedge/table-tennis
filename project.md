@@ -270,8 +270,8 @@ All three modes are beatable. `tests/rally.test.ts` checks this with a seeded he
 
 ### 6.7 Shot power
 
-- **Charge:** hold the paddle and pull it back toward you (mouse or finger). Power is the distance dragged down from the highest point of the current hold, divided by 20% of the screen height (96 to 200 px). On a keyboard, holding ↓ or S fills the bar in 0.7 s, and ↑ or W empties it.
-- **Keep or reset:** power stays when you let go. It resets after your own hit or serve, and at every point.
+- **Charge:** hold the paddle and pull it back toward you (mouse or finger). Power is the longest drag down from the highest point of the current hold, divided by 20% of the screen height (96 to 200 px). On a keyboard, holding ↓ or S fills the bar in 0.7 s.
+- **Keep or reset:** power only grows until it's spent. Moving forward to reach the ball (finger up, or ↑ / W) and letting go both keep it. It resets after your own hit or serve, and at every point. In a rally one finger sets both the paddle depth and the power, so an earlier version that lowered power on forward moves drained the bar exactly when players stepped in to hit (15 Oct 2026).
 - **Effect** (`src/game/shot.ts`):
   - 0% lands just past the net.
   - Depth and speed grow with power.
@@ -291,7 +291,7 @@ All three modes are beatable. `tests/rally.test.ts` checks this with a seeded he
 | ← → ↑ ↓ (or A D W S) | Move the paddle left, right, toward the net and back |
 | Space | Serve, or play again after the game ends |
 | Mouse drag on the paddle | Move the paddle freely (cursor shows `grab` / `grabbing` and the red **You** label). Pulling back charges power |
-| Hold ↓ (or S) | Charge power (full in 0.7 s). ↑ (or W) empties it |
+| Hold ↓ (or S) | Charge power (full in 0.7 s). Power stays until your next hit |
 | M | Mute or unmute |
 | Esc | Does nothing. The mode can't be changed mid-match. |
 
@@ -1477,3 +1477,4 @@ These were found during the Day 2 design pass, which wasn't allowed to change lo
 - **Removed:** the palm on the red paddle and the profile bar in matches.
 - **Loader ball:** the bouncing ball in the Host and Reconnecting screens was frozen on phones with Reduce Motion turned on. It now always plays a gentle hop.
 - **Spacing** is on an 8 px grid. 4 px is used only as a half step inside small parts (badges, gaps between label lines).
+- **Rally power fix (v2.1.1):** charged power now holds until your hit. Moving forward to the ball no longer drains it, and ↑ no longer empties the bar (§6.7).
