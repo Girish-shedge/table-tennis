@@ -1170,7 +1170,7 @@ IDs are used by the tests and the sweep in §24.5.
 - Set `VITE_RELAY_URL` in Vercel for **Preview** and **Production** (⚠️ Y-3). Without it the MP buttons stay hidden (E-50).
 - Merge to `main` only when the QA gate in §24.5 is green.
 - *Update 14 Oct 2026:* `multiplayer` was merged into `main` at Girish's request before S-1 and S-2, so the device test happens on production. `VITE_RELAY_URL` is currently set for **Production** only. For new work, branch from `main` again and add the preview variable if you want MP on preview URLs. Preview URLs are also not in the Worker's `ALLOWED_ORIGINS`, so add them there (in `server/wrangler.toml`, then redeploy) to test MP on a preview.
-- *Update 15 Oct 2026:* v2.1 was shipped the same way: committed on `multiplayer`, then `main` was fast-forwarded to it and pushed. The relay did not change, so no `wrangler deploy` was needed. v2.2 shipped the same way. Its shared name limit (12) only reaches the relay at its next `wrangler deploy`; until then the relay accepts up to 16, which is harmless. v2.3 (§30.5–30.7) shipped the same way. It changes the relay (`server/src/room.ts`: leaving a finished room no longer reopens it), so that fix needs `cd server && npx wrangler deploy`. The client works with the old relay in the meantime.
+- *Update 15 Oct 2026:* v2.1 was shipped the same way: committed on `multiplayer`, then `main` was fast-forwarded to it and pushed. The relay did not change, so no `wrangler deploy` was needed. v2.2 shipped the same way. Its shared name limit (12) only reaches the relay at its next `wrangler deploy`; until then the relay accepts up to 16, which is harmless. v2.3 (§30.5–30.7) shipped the same way. It changes the relay (`server/src/room.ts`: leaving a finished room no longer reopens it), so the relay was redeployed with `cd server && npx wrangler deploy` on the same day. That deploy also applied the 12-character name limit from v2.2.
 
 ### 24.2 Prompt template for every Cursor chat
 
@@ -1502,7 +1502,7 @@ These were found during the Day 2 design pass, which wasn't allowed to change lo
 - **Host stepping away in the lobby** (`away`) keeps the guest in the lobby (E-1).
 - **Reconnecting** now also retries in the lobbies, a reload in a lobby returns to the lobby, and after the window it says "Lost the connection" instead of spinning.
 - **Idle serves:** the player who missed three serves now sees "You were away too long" (before, only the friend was told), and one player's missed serves no longer count against the other.
-- **Relay redeploy needed** for the after-match leave fix (`server/src/room.ts`).
+- **Relay redeployed** (15 Oct 2026) for the after-match leave fix (`server/src/room.ts`).
 
 ### 30.6 Match dock, chat, scoreboard (15 Oct 2026)
 
