@@ -35,23 +35,30 @@ export class OnlineMatch {
   private tick = 0;
   private reported = false;
   private live = true;
+  /** Held on this side (tab hidden, a dialog open, the match over). */
   paused = false;
+  /** Held by the friend (their tab hidden or their dialog open). */
+  private peerPaused = false;
+  /** The friend's socket dropped, or ours did: hold the rally until both are back. */
+  private waiting = false;
   private slowWarned = false;
   private guestServeMs = 0;
   private guestStrikes = 0;
   private off: () => void;
   readonly onGuestEvent: (e: GameEvent) => void;
   readonly onFriendEmote: (id: number) => void;
+  private readonly onIdleOut: () => void;
 
   constructor(
     private game: Game,
     private net: NetClient,
     readonly role: "host" | "guest",
     private onOver: (youWon: boolean, you: number, them: number) => void,
-    hooks?: { onGuestEvent?: (e: GameEvent) => void; onFriendEmote?: (id: number) => void },
+    hooks?: { onGuestEvent?: (e: GameEvent) => void; onFriendEmote?: (id: number) => void; onIdleOut?: () => void },
   ) {
     this.onGuestEvent = hooks?.onGuestEvent ?? (() => {});
     this.onFriendEmote = hooks?.onFriendEmote ?? (() => {});
+    this.onIdleOut = hooks?.onIdleOut ?? (() => {});
     this.game.enterOnline(role);
     if (resumeState.checkpoint && role === "host") {
       this.game.restoreServe(resumeState.checkpoint.score, resumeState.checkpoint.server);
@@ -65,6 +72,11 @@ export class OnlineMatch {
     if (this.game.phase !== "SERVE") return 0;
     if (this.role === "host") return Math.max(0, NET.serveTimerMs - this.game.phaseAge);
     return this.guestServeMs;
+  }
+
+  /** The friend has paused (their tab is hidden or a dialog is open). */
+  get peerHeld() {
+    return this.peerPaused;
   }
 
   get strikes() {
@@ -91,7 +103,7 @@ export class OnlineMatch {
   }
 
   frame(dt: number) {
-    if (this.paused) return;
+    if (this.paused || this.peerPaused || this.waiting) return;
     if (this.role === "host") {
       this.clock.advance(dt, (step) => {
         const forgiven = this.rewind();
@@ -100,7 +112,7 @@ export class OnlineMatch {
         if (this.game.idleSide) {
           const idle = this.game.idleSide;
           this.game.idleSide = null;
-          if (idle === "player") this.net.send({ t: "leave" });
+          if (idle === "player") this.idleOut();
           else this.net.send({ t: "event", kind: "idle" });
         }
       });
@@ -214,16 +226,27 @@ export class OnlineMatch {
     }
   }
 
+  /** This side missed its serve too many times: the relay ends the match as a forfeit. */
+  private idleOut() {
+    if (!this.live) return;
+    this.net.send({ t: "leave" });
+    // Not from inside the fixed-step loop: the handler stops this match.
+    queueMicrotask(() => this.onIdleOut());
+  }
+
   private onNet(msg: Record<string, unknown> | string) {
     if (typeof msg === "string") return;
-    if (msg.t === "pause" || msg.t === "away") this.paused = true;
-    if (msg.t === "resume" || msg.t === "back") this.paused = false;
+    if (msg.t === "pause" || msg.t === "away") this.peerPaused = true;
+    if (msg.t === "resume" || msg.t === "back") this.peerPaused = false;
+    if (msg.t === "peer_joined") this.peerPaused = false;
+    if ((msg.t === "peer_left" && msg.why === "reconnecting") || msg.t === "socket_closed") this.waiting = true;
+    if (msg.t === "hello" || msg.t === "peer_joined") this.waiting = false;
     if ((msg.t === "hello" || msg.t === "peer_joined") && this.role === "host" && this.game.externalSim) {
       this.sendState("state_sync");
     }
     if (this.role === "guest" && msg.t === "event") {
       if (msg.kind === "idle") {
-        if (this.game.server === "player") this.net.send({ t: "leave" });
+        if (this.game.server === "player") this.idleOut();
         return;
       }
       this.onGuestEvent(this.flipEvent(msg));

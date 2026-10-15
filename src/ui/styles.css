@@ -306,8 +306,8 @@ canvas#game {
 }
 .home-icon {
   display: block;
-  width: 128px;
-  height: 128px;
+  width: 208px;
+  height: 208px;
   margin: 0 auto 8px;
   mix-blend-mode: multiply; /* hides the icon's off-white backdrop on the white page */
   user-select: none;
@@ -482,8 +482,8 @@ canvas#game {
     border-radius: 20px;
   }
   .home-icon {
-    width: 112px;
-    height: 112px;
+    width: 160px;
+    height: 160px;
   }
 }
 
@@ -492,8 +492,8 @@ canvas#game {
     padding: 16px;
   }
   .home-icon {
-    width: 80px;
-    height: 80px;
+    width: 112px;
+    height: 112px;
   }
   .home .sub {
     margin-bottom: 16px;
@@ -608,17 +608,38 @@ canvas#game {
   color: var(--text-2);
 }
 
-/* ---- Power bar (in a match, bottom centre) ---------------------------------
-   A status readout, not a button: ink outline, no hard shadow. The gradient is fixed to the
-   track (blue = soft, green = sweet spot, red = may go out) and the fill reveals it from the left. */
-.power {
-  --power: 0;
+/* ---- Bottom dock (in a match): volume, power bar, chat ---------------------- */
+.dock {
   position: fixed;
   left: 50%;
   translate: -50% 0;
   bottom: calc(16px + env(safe-area-inset-bottom));
   z-index: 5;
-  width: min(400px, calc(100vw - 32px));
+  width: min(528px, calc(100vw - 32px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dock[hidden] {
+  display: none;
+}
+.dock > .chip,
+.chat {
+  flex: none;
+}
+.chat {
+  position: relative;
+  width: var(--btn-h);
+  height: var(--btn-h);
+}
+
+/* ---- Power bar ---------------------------------------------------------------
+   A status readout, not a button: ink outline, no hard shadow. The gradient is fixed to the
+   track (blue = soft, green = sweet spot, red = may go out) and the fill reveals it from the left. */
+.power {
+  --power: 0;
+  flex: 1;
+  min-width: 0;
   height: var(--btn-h);
   display: flex;
   align-items: center;
@@ -628,9 +649,6 @@ canvas#game {
   border-radius: 999px;
   background: #fff;
   pointer-events: none;
-}
-.power[hidden] {
-  display: none;
 }
 .power-label,
 .power-state {
@@ -681,21 +699,29 @@ canvas#game {
   right: 0;
   background: repeating-linear-gradient(-45deg, rgba(17, 17, 17, 0.18) 0 2px, transparent 2px 6px);
 }
-@media (max-width: 420px) {
+/* Phones: the volume and chat buttons sit beside the bar, so the "Power" word makes room for the track. */
+@media (max-width: 480px) {
   .power {
     gap: 8px;
+    padding: 0 16px;
+  }
+  .power-label {
+    display: none;
   }
   .power-state {
     width: 72px;
   }
 }
-/* Short landscape: the table fills the bottom centre, so the bar moves to the free bottom-left corner. */
+/* Short landscape: the table fills the bottom centre, so the dock moves to the free bottom-left corner. */
 @media (orientation: landscape) and (max-height: 520px) {
-  .power {
+  .dock {
     left: calc(16px + env(safe-area-inset-left));
     translate: none;
-    width: 200px;
+    width: 320px;
+  }
+  .power {
     gap: 8px;
+    padding: 0 8px 0 16px;
   }
   .power-label {
     display: none;

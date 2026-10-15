@@ -16,7 +16,7 @@
   <body>
     <canvas id="game" aria-label="Table tennis game"></canvas>
 
-    <!-- Top bar: connection on the left, volume and close on the right -->
+    <!-- Top bar: difficulty or connection on the left, close on the right -->
     <div id="controls" class="controls" hidden>
       <div class="controls-side">
         <span id="btn-mode" class="chip chip-static" title="Difficulty is locked for this match">
@@ -32,32 +32,38 @@
         </button>
       </div>
       <div class="controls-side">
-        <button id="btn-mute" class="chip chip-icon" type="button" title="Mute (M)" aria-label="Mute" aria-pressed="false">
-          <span class="icon" data-icon="volume"></span>
-        </button>
         <button id="btn-leave" class="chip chip-icon" type="button" data-testid="leave-match" hidden title="Leave match" aria-label="Leave match">
           <span class="icon" data-icon="close"></span>
         </button>
       </div>
     </div>
 
-    <!-- Shot power: pull the paddle back to charge it. Bottom of the screen during a match. -->
-    <div id="power" class="power" hidden role="meter" aria-label="Shot power" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-      <span class="power-label" aria-hidden="true">Power</span>
-      <span class="power-track" aria-hidden="true">
-        <span class="power-fill"></span>
-        <span class="power-sweet"></span>
-        <span class="power-risk"></span>
-      </span>
-      <span id="power-state" class="power-state" aria-hidden="true">Soft</span>
-    </div>
-
-    <div id="emotes" role="group" aria-label="Emotes" hidden>
-      <button class="chip" type="button" data-testid="emote-0" data-emote="0"></button>
-      <button class="chip" type="button" data-testid="emote-1" data-emote="1"></button>
-      <button class="chip" type="button" data-testid="emote-2" data-emote="2"></button>
-      <button class="chip" type="button" data-testid="emote-3" data-emote="3"></button>
-      <button class="chip" type="button" data-testid="emote-4" data-emote="4"></button>
+    <!-- Bottom dock during a match: volume, shot power (pull the paddle back to charge it), chat -->
+    <div id="dock" class="dock" hidden>
+      <button id="btn-mute" class="chip chip-icon" type="button" title="Mute (M)" aria-label="Mute" aria-pressed="false">
+        <span class="icon" data-icon="volume"></span>
+      </button>
+      <div id="power" class="power" role="meter" aria-label="Shot power" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <span class="power-label" aria-hidden="true">Power</span>
+        <span class="power-track" aria-hidden="true">
+          <span class="power-fill"></span>
+          <span class="power-sweet"></span>
+          <span class="power-risk"></span>
+        </span>
+        <span id="power-state" class="power-state" aria-hidden="true">Soft</span>
+      </div>
+      <div class="chat">
+        <button id="btn-chat" class="chip chip-icon" type="button" data-testid="chat-toggle" title="Send a message" aria-label="Send a message" aria-haspopup="true" aria-expanded="false" aria-controls="emotes" hidden>
+          <span class="icon" data-icon="chat"></span>
+        </button>
+        <div id="emotes" role="group" aria-label="Emotes" hidden>
+          <button class="chip" type="button" data-testid="emote-0" data-emote="0"></button>
+          <button class="chip" type="button" data-testid="emote-1" data-emote="1"></button>
+          <button class="chip" type="button" data-testid="emote-2" data-emote="2"></button>
+          <button class="chip" type="button" data-testid="emote-3" data-emote="3"></button>
+          <button class="chip" type="button" data-testid="emote-4" data-emote="4"></button>
+        </div>
+      </div>
     </div>
 
     <!-- Home page -->
@@ -75,7 +81,7 @@
       </div>
 
       <div class="home-main">
-        <img class="home-icon" src="/icon.png" width="160" height="160" alt="Table Tennis" />
+        <img class="home-icon" src="/icon.png" width="208" height="208" alt="Table Tennis" />
         <h1>Table Tennis</h1>
         <p class="sub">Quick hand-drawn rallies. Beat Bot, or challenge a friend.</p>
         <button id="btn-vsbot" class="btn primary play" type="button" data-testid="play-bot">You vs Bot</button>
@@ -195,6 +201,7 @@
       </div>
     </div>
 
+    <div id="overlay-vs" class="vs-layer" hidden></div>
     <div id="mp-root" hidden></div>
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
     <div id="mp-live" class="sr-only" role="status" aria-live="polite"></div>

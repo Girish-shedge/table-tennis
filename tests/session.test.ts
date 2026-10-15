@@ -96,7 +96,35 @@ describe("session flows §4.6", () => {
       { type: "peerLeft", name: "Ravi", why: "left" },
     ]);
     expect(over.screen).toBe("message");
-    expect(over.message).toBe("friendLeft");
+    expect(over.message).toBe("friendQuit");
+  });
+
+  it("a friend's dropped connection mid-match waits for them instead of ending", () => {
+    const match = play([
+      { type: "host" },
+      { type: "created", code: "KTQR", token: "t", playerId: "p" },
+      { type: "peerJoined", name: "Ravi" },
+      { type: "start" },
+      { type: "countdownDone" },
+      { type: "peerLeft", name: "Ravi", why: "reconnecting" },
+    ]);
+    expect(match.screen).toBe("reconnect");
+    expect(match.message).toBe("peerAway");
+    const back = reduceSession(match, { type: "peerJoined", name: "Ravi" });
+    expect(back.screen).toBe("match");
+    expect(back.message).toBe(null);
+    const gone = reduceSession(match, { type: "peerLeft", name: "Ravi", why: "forfeit" });
+    expect(gone.message).toBe("friendLeft");
+  });
+
+  it("the host stepping away keeps the guest in the lobby", () => {
+    const s = play([
+      { type: "openJoin" },
+      { type: "submitCode" },
+      { type: "joined", token: "t", playerId: "g", hostName: "Girish" },
+      { type: "peerLeft", name: "Girish", why: "away" },
+    ]);
+    expect(s.screen).toBe("guestLobby");
   });
 
   it("a rematch request expires back to the result", () => {

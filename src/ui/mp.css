@@ -640,27 +640,38 @@
   opacity: 1;
 }
 
-/* ---- Emote tray ---------------------------------------------------------- */
+/* ---- Chat: the emote list pops up above the chat button ------------------ */
 #emotes {
-  position: fixed;
-  left: 50%;
-  translate: -50% 0;
-  /* Sits just above the power bar (16 px gap + 48 px bar + 16 px gap). */
-  bottom: calc(80px + env(safe-area-inset-bottom));
-  z-index: 5;
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 16px);
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: 8px;
-  width: max-content;
-  max-width: calc(100vw - 16px);
+  width: 128px;
+  animation: emotes-in 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  transform-origin: bottom right;
 }
 #emotes[hidden] {
   display: none;
 }
 #emotes .chip {
-  min-width: var(--btn-h);
+  width: 100%;
   padding: 0 16px;
+}
+#btn-chat[aria-expanded="true"] {
+  background: var(--primary-tint);
+}
+@keyframes emotes-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ---- Toast --------------------------------------------------------------- */
@@ -670,18 +681,22 @@
   translate: -50% 0;
   top: calc(80px + env(safe-area-inset-top));
   z-index: 12;
-  max-width: min(92vw, 360px);
-  min-height: var(--btn-h);
-  display: flex;
-  align-items: center;
-  padding: 8px 24px;
+  /* Always one line: a long name is trimmed with an ellipsis rather than wrapping. */
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  height: var(--btn-h);
+  display: block;
+  padding: 0 24px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   border: 2.5px solid var(--ink);
   border-radius: 999px;
   background: #fff;
   color: var(--ink);
   /* A message, not a button: no hard shadow. */
   box-shadow: none;
-  font: 700 var(--t-label)/1.2 var(--font);
+  font: 700 var(--t-label) / calc(var(--btn-h) - 5px) var(--font);
   text-align: center;
   pointer-events: none;
   animation: toast-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
@@ -699,6 +714,7 @@
   width: 8px;
   height: 8px;
   margin-right: 8px;
+  vertical-align: middle;
   border-radius: 50%;
   background: var(--danger);
 }
@@ -734,35 +750,12 @@
     height: 72px;
     border-radius: 16px;
   }
-  #emotes .chip {
-    padding: 0 8px;
-  }
 }
 @media (max-width: 340px) {
   .code-tile,
   .code-input {
     width: 48px;
     height: 64px;
-  }
-}
-
-/* ---- Landscape: the emote tray becomes a column beside the table ---------- */
-@media (orientation: landscape) {
-  #emotes {
-    left: auto;
-    translate: none;
-    right: calc(16px + env(safe-area-inset-right));
-    top: 80px;
-    bottom: auto;
-    flex-direction: column;
-    flex-wrap: nowrap;
-    align-items: stretch;
-    width: 96px;
-  }
-  #emotes .chip {
-    width: 100%;
-    justify-content: center;
-    text-align: center;
   }
 }
 
@@ -922,7 +915,8 @@
   .mp-ball::after,
   .mp-expiry.urgent,
   .toast,
-  .toast.out {
+  .toast.out,
+  #emotes {
     animation: none;
   }
   /* The ball and the dots say "still working", so they keep moving (many phones turn on reduced
@@ -942,4 +936,133 @@
   .mp-name-btn svg {
     transition: none;
   }
+}
+
+/* ---- VS splash (before every match) --------------------------------------- */
+.vs-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+}
+.vs-layer[hidden] {
+  display: none;
+}
+.vs {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--primary);
+  color: #fff;
+  font-family: var(--font);
+  z-index: 9;
+}
+.vs-layer .vs {
+  z-index: auto;
+}
+.vs-bg {
+  position: absolute;
+  inset: 0;
+}
+.vs-bg.blue {
+  background: linear-gradient(135deg, #b7d9ff 0%, #2a8dff 28%, var(--primary) 100%);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  animation: vs-from-tl 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.vs-bg.red {
+  background: linear-gradient(135deg, var(--danger) 0%, #ff4a4a 60%, #ff8a8a 100%);
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  animation: vs-from-br 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.vs-side {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  max-width: 44vw;
+  translate: -50% -50%;
+}
+.vs-side.them {
+  left: 28%;
+  top: 28%;
+  animation: vs-slide-l 0.55s 0.12s cubic-bezier(0.34, 1.3, 0.64, 1) both;
+}
+.vs-side.you {
+  left: 72%;
+  top: 72%;
+  animation: vs-slide-r 0.55s 0.12s cubic-bezier(0.34, 1.3, 0.64, 1) both;
+}
+.vs-face {
+  width: clamp(96px, 24vmin, 192px);
+  height: clamp(96px, 24vmin, 192px);
+  border-radius: 50%;
+  border: 4px solid var(--ink);
+  background: var(--primary-tint);
+  box-shadow: 0 6px 0 var(--ink);
+  overflow: hidden;
+  line-height: 0;
+}
+.vs-face svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  transform: scale(1.1);
+}
+.vs-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 700 var(--t-heading) / 1.1 var(--font);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-shadow: 0 3px 0 rgba(17, 17, 17, 0.35);
+}
+.vs-mark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  font: 700 clamp(88px, 26vmin, 200px) / 1 var(--font);
+  color: #fff;
+  -webkit-text-stroke: 0;
+  paint-order: stroke fill;
+  text-shadow: 0 6px 0 rgba(17, 17, 17, 0.4);
+  animation: vs-pop 0.5s 0.3s cubic-bezier(0.34, 1.9, 0.64, 1) both;
+}
+.vs-count {
+  position: absolute;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  translate: -50% 0;
+  width: 88px;
+  height: 88px;
+  pointer-events: none;
+}
+.vs-count h1 {
+  font-size: var(--t-heading);
+  color: var(--ink);
+}
+@keyframes vs-from-tl {
+  from { translate: -30% -30%; opacity: 0; }
+  to { translate: 0 0; opacity: 1; }
+}
+@keyframes vs-from-br {
+  from { translate: 30% 30%; opacity: 0; }
+  to { translate: 0 0; opacity: 1; }
+}
+@keyframes vs-slide-l {
+  from { opacity: 0; transform: translateX(-80px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes vs-slide-r {
+  from { opacity: 0; transform: translateX(80px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes vs-pop {
+  from { opacity: 0; transform: scale(0.3) rotate(-8deg); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vs-bg, .vs-side, .vs-mark { animation: none; }
 }

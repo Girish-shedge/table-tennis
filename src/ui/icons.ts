@@ -92,6 +92,13 @@ export const ICONS: Record<string, string> = {
     <path class="mute-x" d="M15.6 9.4l5 5.2M20.6 9.4l-5 5.2" stroke="${INK}" stroke-width="4.2"/>
     <path class="mute-x" d="M15.6 9.4l5 5.2M20.6 9.4l-5 5.2" stroke="${RED}" stroke-width="2"/>
   </svg>`,
+  // Chat: a blue speech bubble with three dots, for sending a quick emote
+  chat: `<svg ${base}>
+    <path d="M4.6 4.4h14.8a2.2 2.2 0 0 1 2.2 2.2v8.6a2.2 2.2 0 0 1-2.2 2.2H11l-4.6 3.8v-3.8H4.6a2.2 2.2 0 0 1-2.2-2.2V6.6a2.2 2.2 0 0 1 2.2-2.2z" fill="${BLUE}" stroke="${INK}" stroke-width="2"/>
+    <circle cx="8" cy="10.9" r="1.4" fill="#fff"/>
+    <circle cx="12" cy="10.9" r="1.4" fill="#fff"/>
+    <circle cx="16" cy="10.9" r="1.4" fill="#fff"/>
+  </svg>`,
   // Close: a chunky red cross with an ink outline
   close: `<svg ${base}>
     <path d="M6 6l12 12M18 6L6 18" stroke="${INK}" stroke-width="5.2"/>

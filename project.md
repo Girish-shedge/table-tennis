@@ -1170,7 +1170,7 @@ IDs are used by the tests and the sweep in §24.5.
 - Set `VITE_RELAY_URL` in Vercel for **Preview** and **Production** (⚠️ Y-3). Without it the MP buttons stay hidden (E-50).
 - Merge to `main` only when the QA gate in §24.5 is green.
 - *Update 14 Oct 2026:* `multiplayer` was merged into `main` at Girish's request before S-1 and S-2, so the device test happens on production. `VITE_RELAY_URL` is currently set for **Production** only. For new work, branch from `main` again and add the preview variable if you want MP on preview URLs. Preview URLs are also not in the Worker's `ALLOWED_ORIGINS`, so add them there (in `server/wrangler.toml`, then redeploy) to test MP on a preview.
-- *Update 15 Oct 2026:* v2.1 was shipped the same way: committed on `multiplayer`, then `main` was fast-forwarded to it and pushed. The relay did not change, so no `wrangler deploy` was needed. v2.2 shipped the same way. Its shared name limit (12) only reaches the relay at its next `wrangler deploy`; until then the relay accepts up to 16, which is harmless.
+- *Update 15 Oct 2026:* v2.1 was shipped the same way: committed on `multiplayer`, then `main` was fast-forwarded to it and pushed. The relay did not change, so no `wrangler deploy` was needed. v2.2 shipped the same way. Its shared name limit (12) only reaches the relay at its next `wrangler deploy`; until then the relay accepts up to 16, which is harmless. v2.3 (§30.5–30.7) shipped the same way. It changes the relay (`server/src/room.ts`: leaving a finished room no longer reopens it), so that fix needs `cd server && npx wrangler deploy`. The client works with the old relay in the meantime.
 
 ### 24.2 Prompt template for every Cursor chat
 
@@ -1493,3 +1493,29 @@ These were found during the Day 2 design pass, which wasn't allowed to change lo
 - **Play with a friend dialog icons:** Host a game is a red paddle with a blue "+" badge; Join with code is a blue key.
 - **Names are 1 to 12 characters** (`MAX_NAME_LENGTH` in `shared/constants.ts`, was 16). The My player field stops at 12 and shows a live "8/12" counter. A longer name saved earlier is shortened to 12 on load instead of being reset. The deployed relay still accepts up to 16 until it's next redeployed; that's harmless because clients now send at most 12.
 - **Rally power fix (v2.1.1):** charged power now holds until your hit. Moving forward to the ball no longer drains it, and ↑ no longer empties the bar (§6.7).
+
+### 30.5 Friend match: leaving and dropped connections (15 Oct 2026)
+
+- **New game after a friend leaves.** Every message screen now ends the room: the socket is closed, the saved token is cleared and the match is stopped. Before, the old room's socket stayed open after Back home, so hosting again closed the old room and its `room_closed` landed on the new one ("{Name} ended the game, ask for a new link"). `NetClient` also ignores late events from a socket it has already replaced.
+- **Leaving after the final point** no longer reopens the room on the relay (a guest leave used to put it back to WAITING). The friend sees "{Name} left the game · Host a new game to play again." instead of "You win by forfeit".
+- **A friend's dropped connection mid-match** (`peer_left` with `reconnecting`) shows "{Name} stepped away…" and pauses the rally, then resumes when they return (E-13). It used to show "ended the game" on one phone while the match carried on on the other. Forfeit still follows after 15 s.
+- **Host stepping away in the lobby** (`away`) keeps the guest in the lobby (E-1).
+- **Reconnecting** now also retries in the lobbies, a reload in a lobby returns to the lobby, and after the window it says "Lost the connection" instead of spinning.
+- **Idle serves:** the player who missed three serves now sees "You were away too long" (before, only the friend was told), and one player's missed serves no longer count against the other.
+- **Relay redeploy needed** for the after-match leave fix (`server/src/room.ts`).
+
+### 30.6 Match dock, chat, scoreboard (15 Oct 2026)
+
+- **Bottom dock** in every match, desktop and phone: **volume** on the left, the **power bar** in the middle, **chat** on the right (`#dock`). Volume moved here from the top bar, which now holds only the mode or connection chip and the close button. Phones hide the "Power" word to make room for the track; short landscape keeps the dock in the bottom-left corner.
+- **Chat** (friend matches only) is a speech-bubble button. It opens the emote list (Nice!, Hey!, Ouch!, GG, Rematch?) above itself; tapping one sends it and closes the list. Tapping elsewhere or Esc also closes it. The always-visible emote tray is gone.
+- **Desktop scoreboard:** numerals are smaller (72 instead of 112 at design scale) and the names sit under them, as on phones. The opponent's head is 25% smaller on landscape screens.
+- **Toasts are one line**; a long name is trimmed with an ellipsis.
+- **The Leave dialog pauses a friend match** on both screens (it used to pause only vs Bot). The friend sees "{Name} paused the game". Hiding the tab, the Leave dialog and the end of the match share one hold, and play resumes when none is left; each side's own pause and the friend's pause are tracked separately.
+- **Home icon** is larger: 208 px (160 on small phones, 112 on short landscape).
+
+### 30.7 VS screen (15 Oct 2026)
+
+- **Every match opens on a VS screen** (`src/ui/vs.ts`, `buildVs`). The screen is split diagonally: the opponent is on the blue half at the top left and you are on the red half at the bottom right. Each side shows its avatar and name, with a large "VS" in the middle. It has no other stats.
+- **vs Bot:** it shows for 2.5 s and cannot be skipped, then the match starts (`#overlay-vs`, `startWithVs` in `main.ts`). This also happens on Play again. The Bot uses its own face.
+- **vs Friend:** it replaces the old 3-2-1 card. The countdown keeps running inside the splash and ends with "Go!", so both phones stay in step with the relay's `start`.
+- Motion: the two halves and both players slide in from their corners, and the "VS" pops in. With reduced motion, everything appears in place.

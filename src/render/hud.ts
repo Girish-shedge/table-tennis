@@ -38,7 +38,7 @@ export class Hud {
     const s = L.box.s;
     const cx = L.box.x + L.box.w / 2;
     const y = L.scoreY;
-    const size = Math.round((L.portrait ? 124 : 112) * s);
+    const size = Math.round((L.portrait ? 124 : 72) * s);
     const pad = 24 * s; // space between each numeral and the dot
     const gap = 16 * s; // clear space between a numeral and its name
 
@@ -59,33 +59,18 @@ export class Hud {
     ctx.font = nameFont;
     const nameHalf = Math.max(ctx.measureText(youName).width, ctx.measureText(themName).width) / 2;
 
-    if (L.portrait) {
-      // Names sit under the numerals. Each side is centred on its numeral and its name, pushed out far
-      // enough that long names never touch in the middle.
-      const d = Math.max(pad + numHalf, nameHalf + gap);
-      const px = cx - d;
-      const ax = cx + d;
-      this.drawNumeral(ctx, p, px, y, size, this.popPlayerAt, COLORS.paddleRed, now);
-      this.drawNumeral(ctx, a, ax, y, size, this.popAiAt, COLORS.paddleBlue, now);
-      ctx.font = nameFont;
-      ctx.fillStyle = COLORS.muted;
-      ctx.fillText(youName, px, y + 40 * s);
-      ctx.fillText(themName, ax, y + 40 * s);
-    } else {
-      // Landscape has no height to spare above Bot's head, so names sit outside the numerals: You 0 · 0 Bot.
-      const px = cx - pad - numHalf;
-      const ax = cx + pad + numHalf;
-      this.drawNumeral(ctx, p, px, y, size, this.popPlayerAt, COLORS.paddleRed, now);
-      this.drawNumeral(ctx, a, ax, y, size, this.popAiAt, COLORS.paddleBlue, now);
-      ctx.font = nameFont;
-      ctx.fillStyle = COLORS.muted;
-      ctx.textBaseline = "middle";
-      const mid = y - size * 0.34;
-      ctx.textAlign = "right";
-      ctx.fillText(youName, px - numHalf - gap, mid);
-      ctx.textAlign = "left";
-      ctx.fillText(themName, ax + numHalf + gap, mid);
-    }
+    // Names sit under the numerals. Each side is centred on its numeral and its name, pushed out far
+    // enough that long names never touch in the middle.
+    const d = Math.max(pad + numHalf, nameHalf + gap);
+    const px = cx - d;
+    const ax = cx + d;
+    this.drawNumeral(ctx, p, px, y, size, this.popPlayerAt, COLORS.paddleRed, now);
+    this.drawNumeral(ctx, a, ax, y, size, this.popAiAt, COLORS.paddleBlue, now);
+    ctx.font = nameFont;
+    ctx.fillStyle = COLORS.muted;
+    const nameY = y + (L.portrait ? 40 : 28) * s;
+    ctx.fillText(youName, px, nameY);
+    ctx.fillText(themName, ax, nameY);
     ctx.restore();
   }
   private flashAlpha(now: number): number {

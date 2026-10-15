@@ -25,6 +25,7 @@ import { loadName, saveName } from "./net/profile";
 import { sanitizeName } from "../shared/names";
 import { AVATARS, avatarSvg } from "./ui/avatars";
 import { peer } from "./net/peer";
+import { buildVs } from "./ui/vs";
 
 // ---- DOM ------------------------------------------------------------------
 
@@ -110,6 +111,7 @@ function resize() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   layout = computeLayout(W, H);
   P.update(layout);
+  character.sizeK = layout.portrait ? 1 : 0.75;
   const a = headAnchor();
   character.snap(a.x, a.y);
 }
@@ -221,7 +223,25 @@ function startMatch(d: Difficulty) {
   $<HTMLButtonElement>("btn-conn").hidden = true;
   $<HTMLButtonElement>("btn-leave").hidden = false;
   $<HTMLElement>("btn-mode").hidden = false;
+  btnChat.hidden = true; // emotes only go to a friend
   (document.activeElement as HTMLElement | null)?.blur?.();
+}
+
+/** Bot match: the VS splash for 2.5 s, then the match starts. */
+const vsLayer = $<HTMLDivElement>("overlay-vs");
+let vsBusy = false;
+function startWithVs(d: Difficulty) {
+  if (vsBusy) return;
+  vsBusy = true;
+  audio.unlock();
+  (document.activeElement as HTMLElement | null)?.blur?.();
+  vsLayer.replaceChildren(buildVs({ name: truncateName(myName, 12), avatar: peer.mine }, { name: CONFIG.opponentName, avatar: "bot" }));
+  vsLayer.hidden = false;
+  window.setTimeout(() => {
+    startMatch(d);
+    vsLayer.hidden = true;
+    vsBusy = false;
+  }, 2500);
 }
 
 /** Shared behaviour for the home-page dialogs: backdrop click and Esc close, keys never reach the game. */
@@ -249,7 +269,7 @@ vsBotBtn.addEventListener("click", () => {
 for (const btn of Array.from(modeDialog.querySelectorAll<HTMLButtonElement>(".option"))) {
   btn.addEventListener("click", () => {
     modeDialog.hidden = true;
-    startMatch(btn.dataset.mode as Difficulty);
+    startWithVs(btn.dataset.mode as Difficulty);
   });
 }
 $("mode-cancel").addEventListener("click", closeMode);
@@ -288,12 +308,12 @@ $("btn-quit").addEventListener("click", () => {
   showMenu();
 });
 $("btn-leave").addEventListener("click", askLeaveBot);
-$("btn-again").addEventListener("click", () => startMatch(game.difficulty));
+$("btn-again").addEventListener("click", () => startWithVs(game.difficulty));
 $("btn-change").addEventListener("click", showMenu); // only reachable once a match has ended
 overlayOver.addEventListener("click", (e) => {
   if (game.externalSim) return;
   // Tap anywhere outside the buttons to play again.
-  if (!(e.target instanceof HTMLElement && e.target.closest("button"))) startMatch(game.difficulty);
+  if (!(e.target instanceof HTMLElement && e.target.closest("button"))) startWithVs(game.difficulty);
 });
 btnMute.addEventListener("click", () => {
   audio.unlock();
@@ -307,10 +327,28 @@ function setMuted(m: boolean) {
 }
 setMuted(audio.muted);
 
-for (const btn of Array.from(document.querySelectorAll<HTMLButtonElement>("#emotes button"))) {
+// Chat: the button opens the emote list above it; picking one sends it and closes the list.
+const btnChat = $<HTMLButtonElement>("btn-chat");
+const emotes = $<HTMLDivElement>("emotes");
+function setChatOpen(open: boolean) {
+  emotes.hidden = !open;
+  btnChat.setAttribute("aria-expanded", String(open));
+}
+btnChat.addEventListener("click", () => setChatOpen(emotes.hidden));
+document.addEventListener("pointerdown", (e) => {
+  if (!emotes.hidden && !(e.target instanceof Node && btnChat.parentElement?.contains(e.target))) setChatOpen(false);
+});
+emotes.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  e.stopPropagation();
+  setChatOpen(false);
+  btnChat.focus();
+});
+for (const btn of Array.from(emotes.querySelectorAll<HTMLButtonElement>("button"))) {
   const id = Number(btn.dataset.emote);
   btn.textContent = COPY.emotes[id] ?? "";
   btn.addEventListener("click", () => {
+    setChatOpen(false);
     if (!online) return;
     const text = COPY.emotes[id];
     if (!text) return;
@@ -428,9 +466,28 @@ nameField.addEventListener("keydown", (e) => {
 });
 wireDialog(avatarDialog, closeAvatars);
 
-// The power bar follows the top bar: visible during a match, hidden on the home page.
+/**
+ * Why this side is holding a friend match: the tab is hidden, the Leave dialog is open, or the match
+ * is over. A friend match can't stop on one screen only, so the friend is told and waits too.
+ */
+const holds = new Set<string>();
+function setHold(reason: string, on: boolean) {
+  if (!online) return;
+  const was = holds.size > 0;
+  if (on) holds.add(reason);
+  else holds.delete(reason);
+  const now = holds.size > 0;
+  if (was === now) return;
+  online.paused = now;
+  if (online.role === "host") net.send({ t: now ? "pause" : "resume" });
+  else net.send({ t: now ? "away" : "back" });
+}
+
+// The bottom dock follows the top bar: visible during a match, hidden on the home page.
+const dock = $<HTMLDivElement>("dock");
 new MutationObserver(() => {
-  powerBar.hidden = controls.hidden;
+  dock.hidden = controls.hidden;
+  if (dock.hidden) setChatOpen(false);
 }).observe(controls, { attributes: true, attributeFilter: ["hidden"] });
 
 const mp = mountMultiplayer({
@@ -443,10 +500,11 @@ const mp = mountMultiplayer({
     mpThem = session.peerName || "Friend";
     input.resetPull();
     online?.stop();
-    $("emotes").hidden = false;
+    holds.clear();
+    btnChat.hidden = false;
     void lockWake();
     online = new OnlineMatch(game, net, session.role === "guest" ? "guest" : "host", (youWon, you, them) => {
-      if (online) online.paused = true;
+      setHold("over", true);
       mp?.noteResult(youWon, you, them);
     }, {
       onGuestEvent: (e) => game.emitMp(e),
@@ -454,22 +512,26 @@ const mp = mountMultiplayer({
         const text = COPY.emotes[id];
         if (text) bubble.show(text, game.now);
       },
+      onIdleOut: () => mp?.dispatch({ type: "roomClosed", message: "idleOut" }),
     });
   },
   onLeave: () => {
     online?.stop();
     online = null;
+    holds.clear();
     mpYou = "";
     mpThem = "";
     peer.reset();
     controls.hidden = true;
-    $("emotes").hidden = true;
+    btnChat.hidden = true;
+    setChatOpen(false);
     unlockWake();
     showMenu();
   },
   setEscape: (fn) => {
     mpEscape = fn;
   },
+  onDialog: (open) => setHold("dialog", open),
 });
 
 // The multiplayer screens may already have set the name (they own the default "Player NNN").
@@ -642,7 +704,7 @@ function frame(now: number) {
   game.dragTarget = input.dragTarget;
   input.tickPull(dt);
   game.playerPower = input.pull;
-  if (!powerBar.hidden) paintPower(input.pull);
+  if (!dock.hidden) paintPower(input.pull);
   if (!dev.paused) {
     if (online) online.frame(dt);
     else game.update(dt);
@@ -667,7 +729,9 @@ function frame(now: number) {
     }
     const latency = online.noteLatency();
     const quiet = online.silenceMs(performance.now());
-    if (slowSeconds >= 3) setConn(COPY.deviceStruggling);
+    if (online.paused) setConn(`${net.rttMs} ms`);
+    else if (online.peerHeld) setConn(`${mpThem || "Friend"} ${COPY.friendPaused}`);
+    else if (slowSeconds >= 3) setConn(COPY.deviceStruggling);
     else if (quiet > 6000) setConn(`${mpThem || "Friend"} ${COPY.steppedAway}`);
     else if (quiet > 2500 || latency === "wait") setConn(`${COPY.waiting} ${mpThem || "Friend"}…`);
     else if (latency === "slow") setConn(COPY.slowConnection);
@@ -702,23 +766,12 @@ function unlockWake() {
 
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
-    if (online) {
-      if (online.role === "host") net.send({ t: "pause", reason: "host_hidden" });
-      else net.send({ t: "away" });
-      online.paused = true;
-    }
+    setHold("hidden", true);
     running = false;
   } else if (!running) {
     running = true;
     last = performance.now();
     requestAnimationFrame(frame);
-    if (online) {
-      window.setTimeout(() => {
-        if (!online) return;
-        if (online.role === "host") net.send({ t: "resume", in: 2 });
-        else net.send({ t: "back" });
-        online.paused = false;
-      }, 2000);
-    }
+    window.setTimeout(() => setHold("hidden", false), 2000);
   }
 });

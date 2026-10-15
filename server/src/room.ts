@@ -458,6 +458,12 @@ export class Room extends DurableObject<Env> {
 
   private async onLeave(role: Role) {
     if (!this.data) return;
+    if (this.data.status === "ENDED" || this.data.status === "EXPIRED") {
+      // After the final point: tell the other player, but never reopen a finished room.
+      const name = role === "host" ? this.data.hostName : this.data.guestName ?? "Friend";
+      this.sendTo(role === "host" ? "guest" : "host", { t: "peer_left", v: PROTOCOL_VERSION, name, why: "left" });
+      return;
+    }
     if (this.data.status === "COUNTDOWN" || this.data.status === "PLAYING" || this.data.status === "PAUSED") {
       this.forfeit(role);
       await this.schedule(null, null);

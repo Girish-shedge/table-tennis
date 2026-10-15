@@ -327,6 +327,20 @@ async function playing() {
   guest.ws.close();
 }
 
+// Leaving after the final point tells the friend and never reopens the finished room.
+{
+  const { room, host, guest } = await playing();
+  send(host, { t: "match_over", score: { player: 11, ai: 7 } });
+  await sleep(80);
+  send(guest, { t: "leave" });
+  const left = await until(host, (m) => m.t === "peer_left");
+  assert(left.why === "left", `after-match leave ${left.why}`);
+  const preview = await api(`/api/rooms/${room.code}`);
+  assert(preview.status === 410 && preview.body.error === "ROOM_ENDED", `after-match leave reopened ${JSON.stringify(preview.body)}`);
+  host.ws.close();
+  guest.ws.close();
+}
+
 // E-22: the newest tab wins.
 {
   const room = await claim("Host");

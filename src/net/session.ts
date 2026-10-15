@@ -109,6 +109,7 @@ export function reduceSession(s: Session, e: SessionEvent): Session {
       if (s.screen === "hostLobby" || s.screen === "hostReady") {
         return { ...s, screen: "hostReady", peerName: e.name };
       }
+      if (s.screen === "reconnect" && s.message === "peerAway") return { ...s, screen: s.underneath ?? "match", underneath: null, peerName: e.name, message: null };
       if (s.screen === "reconnect") return { ...s, screen: s.underneath === "match" ? "match" : s.screen, peerName: e.name };
       return { ...s, peerName: e.name };
     case "openJoin":
@@ -170,9 +171,15 @@ export function reduceSession(s: Session, e: SessionEvent): Session {
     case "confirmLeave":
       return { ...initialSession(s.myName, s.nameSaved), message: null };
     case "peerLeft":
-      if (s.screen === "match" || s.screen === "countdown" || s.screen === "reconnect" || s.screen === "result" || s.screen === "rematch") {
-        return message({ ...s, peerName: e.name }, e.why === "forfeit" || s.screen === "result" ? "friendLeft" : "friendEnded");
+      // "reconnecting" and "away" mean the friend dropped and may come back: the relay holds the room.
+      if (e.why === "reconnecting" || e.why === "away") {
+        if (s.screen === "match" || s.screen === "countdown") return { ...s, screen: "reconnect", underneath: "match", peerName: e.name, message: "peerAway" };
+        if (s.screen === "hostReady") return { ...s, screen: "hostLobby", peerName: null };
+        return s;
       }
+      if (e.why === "forfeit") return message({ ...s, peerName: e.name }, "friendLeft");
+      if (s.screen === "result" || s.screen === "rematch") return message({ ...s, peerName: e.name }, "friendQuit");
+      if (s.screen === "match" || s.screen === "countdown" || s.screen === "reconnect") return message({ ...s, peerName: e.name }, "friendEnded");
       if (s.screen === "hostReady") return { ...s, screen: "hostLobby", peerName: null };
       if (s.screen === "guestLobby" || s.screen === "hostLobby") return message(s, "friendEnded");
       return s;
@@ -180,11 +187,12 @@ export function reduceSession(s: Session, e: SessionEvent): Session {
       return message(s, e.message);
     case "disconnected":
       if (s.screen === "match" || s.screen === "countdown" || s.screen === "hostLobby" || s.screen === "hostReady" || s.screen === "guestLobby") {
-        return { ...s, screen: "reconnect", underneath: s.screen === "countdown" ? "match" : s.screen };
+        return { ...s, screen: "reconnect", underneath: s.screen === "countdown" ? "match" : s.screen, message: null };
       }
+      if (s.screen === "reconnect") return { ...s, message: null };
       return s;
     case "reconnected":
-      return s.screen === "reconnect" && s.underneath ? { ...s, screen: s.underneath, underneath: null } : s;
+      return s.screen === "reconnect" && s.underneath ? { ...s, screen: s.underneath, underneath: null, message: null } : s;
     case "cancel":
       if (s.screen === "creating" || s.screen === "joinCode" || s.screen === "joining" || s.screen === "invite" || s.screen === "hostLobby") {
         return initialSession(s.myName, s.nameSaved);

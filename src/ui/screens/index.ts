@@ -13,12 +13,15 @@ import { showToast } from "../toast";
 import { iconNode } from "../icons";
 import { avatarSvg } from "../avatars";
 import { peer } from "../../net/peer";
+import { buildVs } from "../vs";
 
 export interface ScreenHooks {
   unlock: () => void;
   onMatch: (session: Session) => void;
   onLeave: () => void;
   setEscape: (fn: () => void) => void;
+  /** The Leave dialog opened or closed over a match. */
+  onDialog: (open: boolean) => void;
 }
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -73,7 +76,6 @@ export function mountMultiplayer(hooks: ScreenHooks) {
   let countdownTimer = 0;
   let rematchTimer = 0;
   let expiresAt = 0;
-  let ignoreClose = false;
   let playing = false;
   let backingOff = false;
   const tab = { id: crypto.randomUUID(), at: Date.now() };
@@ -112,7 +114,11 @@ export function mountMultiplayer(hooks: ScreenHooks) {
   });
 
   function dispatch(event: SessionEvent) {
+    const before = session.screen;
     session = reduceSession(session, event);
+    // Every message screen is the end of that room: let go of it so it can't speak into the next game.
+    if (session.screen === "message" && before !== "message") endRoom();
+    if ((session.screen === "leave") !== (before === "leave")) hooks.onDialog(session.screen === "leave");
     render();
   }
 
@@ -153,7 +159,12 @@ export function mountMultiplayer(hooks: ScreenHooks) {
         resumeState.checkpoint = { score: cp.score, server: cp.server };
       }
       const status = String(msg.roomStatus || "");
-      if (session.screen === "reconnect") dispatch({ type: "reconnected" });
+      if (session.screen === "reconnect") {
+        // A reload in the lobby comes back to the lobby, not to an empty match.
+        const lobby = !playing && (status === "WAITING" || status === "LOBBY_FULL");
+        if (lobby) session = { ...session, underneath: session.role === "guest" ? "guestLobby" : status === "LOBBY_FULL" ? "hostReady" : "hostLobby" };
+        dispatch({ type: "reconnected" });
+      }
       if (!playing && (status === "PLAYING" || status === "PAUSED" || status === "COUNTDOWN")) {
         const peer = msg.peer as { name?: string } | null;
         if (peer?.name) session = { ...session, peerName: peer.name };
@@ -168,14 +179,8 @@ export function mountMultiplayer(hooks: ScreenHooks) {
     }
     if (msg.t === "error" && msg.error === "DUPLICATE_TAB") dispatch({ type: "roomClosed", message: "duplicate" });
     if (msg.t === "socket_closed") {
-      if (ignoreClose) {
-        ignoreClose = false;
-        return;
-      }
-      if (session.screen === "match" || session.screen === "countdown") {
-        dispatch({ type: "disconnected" });
-        void backoff();
-      } else if (session.screen !== "start" && session.screen !== "message") dispatch({ type: "disconnected" });
+      dispatch({ type: "disconnected" });
+      if (session.screen === "reconnect") void backoff();
     }
   });
 
@@ -189,6 +194,7 @@ export function mountMultiplayer(hooks: ScreenHooks) {
     while (saved && Date.now() - started < NET.reconnectWindowMs && session.screen === "reconnect") {
       await new Promise((resolve) => window.setTimeout(resolve, delays[Math.min(i, delays.length - 1)]));
       i++;
+      if (session.screen !== "reconnect") break;
       try {
         await connect(saved.code, saved.token, saved.role);
         backingOff = false;
@@ -198,6 +204,10 @@ export function mountMultiplayer(hooks: ScreenHooks) {
       }
     }
     backingOff = false;
+    // Past the window the relay has already ended the room, so stop spinning and say so.
+    if (session.screen === "reconnect" && session.message !== "peerAway") {
+      dispatch({ type: "roomClosed", message: navigator.onLine === false ? "unreachable" : "connectionLost" });
+    }
   }
 
   async function connect(code: string, token: string, role: "host" | "guest") {
@@ -206,10 +216,23 @@ export function mountMultiplayer(hooks: ScreenHooks) {
   }
 
   function dropRoom() {
-    ignoreClose = true;
     net.send({ t: "leave" });
+    endRoom();
+  }
+
+  /** Close this room's socket, forget its token and stop any match it was running. */
+  function endRoom() {
     net.close();
     clearSession();
+    window.clearInterval(countdownTimer);
+    window.clearTimeout(rematchTimer);
+    if (!playing) return;
+    playing = false;
+    $<HTMLButtonElement>("btn-conn").hidden = true;
+    $<HTMLButtonElement>("btn-leave").hidden = true;
+    $<HTMLElement>("btn-mode").hidden = false;
+    $("controls").hidden = true;
+    hooks.onLeave();
   }
 
   function showCount(n: number) {
@@ -540,14 +563,16 @@ export function mountMultiplayer(hooks: ScreenHooks) {
     }
 
     if (s.screen === "countdown") {
-      card.className = "mp-count tick";
-      const ring = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      ring.setAttribute("viewBox", "0 0 130 130");
-      ring.setAttribute("aria-hidden", "true");
-      const arc = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      for (const [k, v] of Object.entries({ cx: "65", cy: "65", r: "60" })) arc.setAttribute(k, v);
-      ring.append(arc);
-      card.append(ring, el("h1", { id: "mp-count", "data-testid": "countdown" }, "3"));
+      // The VS splash doubles as the countdown: both players see it, and it ends on "Go".
+      card.className = "vs-wrap";
+      const count = el("div", { class: "vs-count mp-count tick" });
+      count.append(el("h1", { id: "mp-count", "data-testid": "countdown" }, "3"));
+      const splash = buildVs(
+        { name: truncateName(s.myName, 12), avatar: peer.mine },
+        { name: truncateName(peerName, 12), avatar: peer.theirs },
+      );
+      splash.append(count);
+      card.append(splash);
       return;
     }
 
@@ -561,11 +586,6 @@ export function mountMultiplayer(hooks: ScreenHooks) {
         stay,
         button(COPY.leave, "mp-confirm-leave", () => {
           dropRoom();
-          $<HTMLButtonElement>("btn-conn").hidden = true;
-          $<HTMLButtonElement>("btn-leave").hidden = true;
-          $<HTMLElement>("btn-mode").hidden = false;
-          $("controls").hidden = true;
-          hooks.onLeave();
           dispatch({ type: "confirmLeave" });
         }),
       );
@@ -587,7 +607,6 @@ export function mountMultiplayer(hooks: ScreenHooks) {
         }, true),
         button(COPY.leave, "mp-result-leave", () => {
           dropRoom();
-          hooks.onLeave();
           dispatch({ type: "confirmLeave" });
         }),
       );
@@ -614,16 +633,18 @@ export function mountMultiplayer(hooks: ScreenHooks) {
     }
 
     if (s.screen === "reconnect") {
-      card.append(ballSpinner(), el("h1", { class: "mp-h", "data-testid": "reconnect" }, COPY.reconnecting), el("p", { class: "sub" }, COPY.reconnectingSub));
-      announce(COPY.reconnecting);
+      const heading = s.message === "peerAway" ? `${peerName} ${COPY.steppedAway}` : COPY.reconnecting;
+      card.append(ballSpinner(), el("h1", { class: "mp-h", "data-testid": "reconnect" }, heading), el("p", { class: "sub" }, COPY.reconnectingSub));
+      announce(heading);
       card.append(actions(button(COPY.leave, "mp-reconnect-leave", () => dispatch({ type: "askLeave" }))));
       return;
     }
 
     if (s.screen === "message" && s.message && s.message in COPY.messages) {
       const copy = COPY.messages[s.message as MessageKey];
-      const title = s.message === "friendLeft" || s.message === "friendEnded" ? `${peerName} ${copy.title}` : copy.title;
-      if (s.message !== "friendLeft") card.append(glyph());
+      const named = s.message === "friendLeft" || s.message === "friendEnded" || s.message === "friendQuit";
+      const title = named ? `${peerName} ${copy.title}` : copy.title;
+      if (s.message !== "friendLeft" && s.message !== "friendQuit") card.append(glyph());
       card.append(el("h1", { class: "mp-h" }, title), el("p", { class: "sub" }, copy.body));
       announce(`${title}. ${copy.body}`);
       const primary = button(copy.primary, "mp-primary", () => {

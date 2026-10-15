@@ -119,6 +119,8 @@ for (const size of only) {
   await host.waitForTimeout(2500);
   await shot(host, "09-match", size);
   await shot(guest, "09-match-guest", size);
+  await host.getByTestId("chat-toggle").click();
+  await shot(host, "09a-chat-open", size);
   await host.getByTestId("emote-0").click();
   await host.waitForTimeout(150);
   await shot(host, "09b-emote-self", size);

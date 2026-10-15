@@ -24,7 +24,9 @@ export class NetClient {
     const transport = new WebSocketTransport(url);
     this.transport = transport;
     await transport.ready;
+    // A replaced or closed socket can still fire late events; only the current one may speak.
     transport.onMessage((data) => {
+      if (this.transport !== transport) return;
       if (data === "pong" || data === "ping") {
         if (data === "pong" && this.pingAt) this.noteRtt(performance.now() - this.pingAt);
         for (const handler of this.handlers) handler(data);
@@ -38,6 +40,7 @@ export class NetClient {
       }
     });
     transport.onClose(() => {
+      if (this.transport !== transport) return;
       for (const handler of this.handlers) handler({ t: "socket_closed" });
     });
     this.pingTimer = window.setInterval(() => {

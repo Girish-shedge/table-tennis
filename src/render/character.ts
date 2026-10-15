@@ -22,6 +22,8 @@ export class Character {
   private squash = 0;
   private time = 0;
   private initialized = false;
+  /** Head size relative to `CONFIG.headRadius`; smaller on wide screens, where it sits under the score. */
+  sizeK = 1;
 
   setAvatar(id: string | null) {
     this.avatar = id;
@@ -68,7 +70,7 @@ export class Character {
   }
 
   radius(P: Projection): number {
-    return CONFIG.headRadius * P.scaleAt(CONFIG.tableL);
+    return CONFIG.headRadius * this.sizeK * P.scaleAt(CONFIG.tableL);
   }
 
   draw(ctx: CanvasRenderingContext2D, P: Projection, lookAt: { x: number; y: number } | null) {

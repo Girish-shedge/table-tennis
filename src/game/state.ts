@@ -53,6 +53,7 @@ export class Game {
   mpRole: "host" | "guest" | null = null;
   /** Auto-serves in a row. Reset by a deliberate serve. */
   serveStrikes = 0;
+  private strikeSide: Side | null = null;
   /** Set when the third idle serve should be treated as a disconnect. */
   idleSide: Side | null = null;
   private forgivenFar: { x: number; z: number } | null = null;
@@ -411,6 +412,9 @@ export class Game {
         this.holdBallAboveServer();
         if (this.now - this.phaseAt >= NET.serveTimerMs) {
           const idle = this.server;
+          // One player's missed serves never count against the other.
+          if (this.strikeSide !== idle) this.serveStrikes = 0;
+          this.strikeSide = idle;
           this.serveStrikes++;
           if (this.serveStrikes >= 3) this.idleSide = idle;
           if (idle === "player") this.serve("player");
