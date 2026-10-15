@@ -281,13 +281,15 @@ canvas#game {
 }
 
 /* ---- Home page ------------------------------------------------------------ */
-/* The whole home page fits one screen: the icon, title and subtitle scale with the screen height,
-   and the corner's depth follows the subtitle width. */
+/* The whole home page fits one screen. --d is the table's width corner to corner: as wide as the
+   screen allows (16 px of floor each side, at most 640 px), and small enough on short screens that
+   the buttons and footer fit below it. The icon, title and subtitle scale with it. */
 .home {
-  --icon-s: clamp(48px, 20dvh - 64px, 208px);
-  --title-fs: min(var(--t-title), max(30px, 6dvh));
-  --sub-fs: min(var(--t-subtitle), max(18px, 3dvh));
-  --sub-w: calc(var(--sub-fs) * 9);
+  --d: min(100vw - 32px, 640px, (100dvh - 250px) / 0.88);
+  --cy: calc(var(--d) * 0.38);
+  --icon-s: calc(var(--d) * 0.18);
+  --title-fs: min(var(--t-title), var(--d) * 0.1);
+  --sub-fs: min(var(--t-subtitle), max(16px, var(--d) * 0.05));
   position: fixed;
   inset: 0;
   z-index: 10;
@@ -304,28 +306,20 @@ canvas#game {
   display: none;
 }
 /*
- * The court: the in-game table seen from above, turned 45° so one square corner points down at the
- * floor (the white page). It is one huge square, so the corner has the same 90° shape on every screen;
- * the rest of the table runs off the top (and, on phones, the sides).
- * ::before is the table's darker side band; ::after is the blue surface with its inset white border,
- * lifted a little so the band shows along both front edges.
- * The corner sits far enough below the text that the subtitle stays clear of the white border:
- * at 45°, a point is inside the border when its height above the corner exceeds its distance from
- * the centre by about 52 px (border inset, band and a small gap).
+ * The court: the in-game table, a square seen from above and turned 45°. Its left, right and bottom
+ * corners sit on the floor (the white page); the top corner runs off the top of the screen. Its
+ * centre is --cy below the top. ::after is the blue surface with its inset white border; ::before
+ * is the darker side band, the same square 11 px lower, so it shows along both front edges.
+ * The title sits on the centre line, where the table is widest, with the icon above and the
+ * subtitle below.
  */
 .court {
-  --s: 4000px;
   position: relative;
   isolation: isolate;
   overflow: hidden;
   flex: none;
   width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: env(safe-area-inset-top) 0 calc(var(--sub-w) / 2 + 52px);
-  /* Deep enough that the outer chips in the top row stay inside the white border. */
-  min-height: calc(min(50vw - 16px, 260px) + 106px + env(safe-area-inset-top));
+  height: calc(env(safe-area-inset-top) + var(--cy) + var(--d) / 2 + 11px);
   margin-top: calc(-1 * env(safe-area-inset-top));
 }
 .court::before,
@@ -333,25 +327,28 @@ canvas#game {
   content: "";
   position: absolute;
   left: 50%;
-  width: var(--s);
-  height: var(--s);
+  top: calc(env(safe-area-inset-top) + var(--cy));
+  width: calc(var(--d) * 0.7071);
+  height: calc(var(--d) * 0.7071);
   z-index: -1;
   transform: translate(-50%, -50%) rotate(45deg);
 }
 .court::before {
-  top: calc(100% - var(--s) * 0.7071);
+  top: calc(env(safe-area-inset-top) + var(--cy) + 11px);
   background: var(--primary-dark);
 }
 .court::after {
-  top: calc(100% - var(--s) * 0.7071 - 11px);
   background: var(--table);
   box-shadow:
     inset 0 0 0 16px var(--table),
     inset 0 0 0 21px #fff;
 }
 .court-main {
-  width: min(440px, 100%);
-  padding: min(16px, 1dvh) 16px 0;
+  position: absolute;
+  left: 50%;
+  top: calc(env(safe-area-inset-top) + var(--cy) - var(--icon-s) - 8px - var(--title-fs) / 2);
+  width: var(--d);
+  transform: translateX(-50%);
 }
 .home-main {
   flex: 1 0 auto;
@@ -381,7 +378,7 @@ canvas#game {
 /* White on the table blue: the title is large text, and the subtitle is bold so it counts as large too. */
 .home h1 {
   font: 700 var(--title-fs)/1 var(--font);
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   letter-spacing: -0.01em;
   color: #fff;
   text-shadow: 0 3px 0 var(--primary-ink);
@@ -389,36 +386,14 @@ canvas#game {
 .home .sub {
   font: 700 var(--sub-fs)/1.3 var(--font);
   color: #fff;
-  margin: 0 auto;
-  max-width: var(--sub-w);
-  text-wrap: balance;
+  margin: 0;
 }
-/* Short portrait phones: the icon goes so the board and both buttons still fit. */
-@media (orientation: portrait) and (max-height: 620px) {
-  .home-icon {
-    display: none;
-  }
-  .home .home-top {
-    padding-top: 8px;
-  }
-}
-/* Short landscape phones: the icon sits beside the title, the subtitle goes, and the two buttons
-   share one row with "or" between them. The corner's depth follows the title row instead, and the
-   chips shrink to their icons in a narrow row so they stay on the board. */
-@media (orientation: landscape) and (max-height: 520px) {
-  .home {
-    --btn-h: 44px;
-    --title-fs: 28px;
-    --sub-w: 180px;
-  }
-  .court {
-    min-height: 0;
-  }
-  .home .home-top {
-    width: 264px;
-    padding: 8px 0 0;
-  }
-  .home-top .chip:has(.icon[data-icon="help"]) {
+/* Phones and short landscape screens: the table's top is too narrow for the chips with their
+   labels, so they shrink to their icons on the floor in the top corners. Screen readers still get
+   "How to play" and the profile button's label. */
+@media (max-width: 699px), (orientation: landscape) and (max-height: 520px) {
+  .home-top .chip:has(.icon[data-icon="help"]),
+  .home-top .profile-btn {
     width: var(--btn-h);
     padding: 0;
   }
@@ -431,50 +406,30 @@ canvas#game {
     clip-path: inset(50%);
     white-space: nowrap;
   }
-  .home-top .profile-btn {
-    padding: 0 12px;
-  }
-  .court-main {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-  }
-  .court .home-icon {
-    --icon-s: 36px;
-    margin: 0;
-  }
-  .home h1 {
-    margin: 0;
-  }
-  .home .sub {
+  .home-top .profile-btn .icon[data-icon="pencil"] {
     display: none;
+  }
+}
+/* Short landscape phones: the table on the left half; the chips, buttons and footer on the right. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .home {
+    --d: min(50vw - 32px, (100dvh - 11px) / 0.88);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr auto;
+    align-items: center;
+  }
+  .court {
+    grid-row: 1 / -1;
+    align-self: start;
+  }
+  .home .home-top {
+    position: fixed;
+    justify-content: flex-end;
   }
   .home-main {
-    width: min(640px, 100%);
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-content: center;
-    align-items: center;
-    column-gap: 12px;
-    padding: 8px 16px;
-  }
-  .home .mp-entry:not([hidden]) {
-    display: contents;
-  }
-  .home .mp-divider {
-    margin: 0;
-  }
-  .home .mp-divider::before,
-  .home .mp-divider::after {
-    display: none;
-  }
-  .home .net-status {
-    grid-column: 1 / -1;
-    margin-top: 4px;
-  }
-  .home .footer {
-    padding: 6px 16px calc(6px + env(safe-area-inset-bottom));
+    justify-self: center;
+    width: min(400px, 100%);
   }
 }
 
@@ -659,14 +614,18 @@ canvas#game {
 }
 
 /* ---- Home top bar: the profile button opens the player picker ------------- */
-/* Narrower than the screen on desktops, so both chips stay on the table and off the floor. */
+/* The chips sit on the floor in the top corners of the screen, either side of the table's top. */
 .home-top {
-  width: min(100%, 520px);
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 12px);
+  left: 0;
+  right: 0;
+  z-index: 1;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px 0;
+  padding: 0 16px;
 }
 /* Both home chips use 24 px icons: the help mark, the player's face and the pencil. */
 .home-top .icon {
