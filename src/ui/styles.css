@@ -289,7 +289,8 @@ canvas#game {
   flex-direction: column;
   align-items: center;
   overflow-y: auto;
-  background: var(--bg);
+  /* The floor: a faint cool tint that fades to white, so the table's corner stands out. */
+  background: linear-gradient(#e9f3ff, #ffffff 55%) var(--bg);
   text-align: center;
   padding-top: env(safe-area-inset-top);
 }
@@ -338,7 +339,10 @@ canvas#game {
   );
 }
 .court::after {
-  background: var(--table);
+  /* Table surface with a soft light from the top. */
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 20%, #3aa6ff 0%, rgba(58, 166, 255, 0) 100%),
+    var(--table);
   clip-path: polygon(
     0 0,
     100% 0,
@@ -346,37 +350,6 @@ canvas#game {
     50% calc(100% - var(--band) - var(--line)),
     0 calc(100% - var(--v) - var(--band) - var(--line))
   );
-}
-/* Court markings: same idea as drawTable (inset white border + centre line) and the net band. */
-.court-lines {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  fill: none;
-  stroke: #fff;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.court-border {
-  stroke-width: 2.5px;
-  vector-effect: non-scaling-stroke;
-}
-.court-mid {
-  stroke-width: 2px;
-  vector-effect: non-scaling-stroke;
-}
-.court-net {
-  stroke: rgba(255, 255, 255, 0.72);
-  stroke-width: 2px;
-  vector-effect: non-scaling-stroke;
-}
-.home-top,
-.court-main {
-  position: relative;
-  z-index: 1;
 }
 @media (min-width: 600px) {
   .court {
@@ -415,6 +388,18 @@ canvas#game {
   margin: 0 auto 8px;
   user-select: none;
   -webkit-user-drag: none;
+  filter: drop-shadow(0 6px 0 rgba(0, 84, 158, 0.35));
+  animation: home-float 3s ease-in-out infinite;
+}
+@keyframes home-float {
+  50% {
+    transform: translateY(-6px) rotate(-2deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-icon {
+    animation: none;
+  }
 }
 /* White on the table blue: the title is large text, and the subtitle is bold so it counts as large too. */
 .home h1 {
