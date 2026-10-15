@@ -21,6 +21,7 @@ import { COPY, truncateName } from "./strings";
 import { mountMultiplayer } from "./ui/screens";
 import { mountIcons } from "./ui/icons";
 import { mountPress } from "./ui/press";
+import { mountHomeRally } from "./ui/homeRally";
 import { loadName, saveName } from "./net/profile";
 import { sanitizeName } from "../shared/names";
 import { AVATARS, avatarSvg } from "./ui/avatars";
@@ -380,6 +381,7 @@ $("over-hint").textContent = input.kind === "touch" ? "Tap to play again" : "Spa
 
 mountIcons();
 mountPress();
+mountHomeRally();
 
 // ---- Power bar ------------------------------------------------------------
 

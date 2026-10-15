@@ -413,7 +413,8 @@
   align-self: flex-start;
   margin-top: 40px;
   width: 40px;
-  border-top: 3px dotted var(--ink);
+  height: 4px;
+  background: radial-gradient(circle, var(--ink) 0 1.5px, transparent 2px) 0 50% / 7px 4px repeat-x;
 }
 .mp-status {
   display: inline-flex;

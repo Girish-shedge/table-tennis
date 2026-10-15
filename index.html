@@ -68,35 +68,64 @@
 
     <!-- Home page -->
     <main id="overlay-start" class="home">
-      <!-- The court: one corner of the table, pointing down. Buttons and footer sit on the floor below it. -->
-      <section class="court">
-        <div class="home-top">
-          <button id="btn-help" class="chip" type="button" aria-haspopup="dialog" data-testid="how-to-play">
-            <span class="icon" data-icon="help"></span>
-            <span>How to play</span>
-          </button>
-          <button id="btn-profile" class="chip profile-btn" type="button" aria-haspopup="dialog" aria-label="My player: edit your name and avatar" data-testid="choose-player">
+      <!-- Four parts: header (How to play), hero (title, subtitle, board, your player), the two buttons, footer. -->
+      <header class="home-top">
+        <button id="btn-help" class="link-btn" type="button" aria-haspopup="dialog" data-testid="how-to-play">
+          <span class="icon" data-icon="help"></span>
+          <span class="dotted">How to play</span>
+        </button>
+      </header>
+
+      <div class="home-body">
+        <section class="hero">
+          <h1>Doodle Rally</h1>
+          <p class="sub">Keep the rally going</p>
+          <svg class="hero-table" viewBox="25 -34 380 118" aria-hidden="true">
+            <defs>
+              <clipPath id="paddle-face"><ellipse rx="28.5" ry="30.3" /></clipPath>
+              <g id="paddle">
+                <rect class="p-handle" x="-7.2" y="24" width="14.4" height="37.5" rx="6.5" />
+                <path class="p-grip" d="M2.6 31.5V54" />
+                <ellipse class="p-edge" cx="7" rx="30" ry="31.8" />
+                <ellipse class="p-face" rx="30" ry="31.8" />
+                <path class="p-shade" clip-path="url(#paddle-face)" fill-rule="evenodd" d="M-60-60H60V60H-60Z M-25.5 9a33 33 0 1 0 66 0a33 33 0 1 0-66 0Z" />
+                <path class="p-glint" d="M-19.97-6.49A21 21 0 0 1-5.22-20.34" />
+              </g>
+            </defs>
+            <polygon class="t-top" points="60,25 370,25 405,72 25,72" />
+            <rect class="t-edge" x="25" y="72" width="380" height="9" />
+            <polygon class="t-line" points="63,29 367,29 396,68 34,68" />
+            <line class="t-line" x1="48.5" y1="48.5" x2="381.5" y2="48.5" />
+            <ellipse id="rally-red-shadow" class="p-shadow" cx="93" cy="55" rx="16" ry="4.2" />
+            <ellipse id="rally-blue-shadow" class="p-shadow" cx="337" cy="55" rx="16" ry="4.2" />
+            <ellipse id="rally-shadow" class="r-shadow" cx="215" cy="48.5" rx="4" ry="1.6" />
+            <rect class="t-net" x="212.75" y="8" width="4.5" height="76" rx="1.5" />
+            <rect class="t-net" x="209.5" y="80.5" width="11" height="3.5" rx="1" />
+            <g id="rally-red">
+              <use class="paddle-red" href="#paddle" transform="translate(100 1) rotate(38) scale(0.446 0.72)" />
+            </g>
+            <g id="rally-blue">
+              <use class="paddle-blue" href="#paddle" transform="translate(330 1) rotate(-38) scale(-0.446 0.72)" />
+            </g>
+            <circle id="rally-ball" class="r-ball" cx="215" cy="-3" r="4.5" />
+          </svg>
+          <button id="btn-profile" class="link-btn profile-btn" type="button" aria-haspopup="dialog" aria-label="My player: edit your name and avatar" data-testid="choose-player">
             <span id="profile-btn-face" class="profile-face"></span>
-            <span id="profile-btn-name" class="profile-btn-name"></span>
+            <span id="profile-btn-name" class="profile-btn-name dotted"></span>
             <span class="icon" data-icon="pencil"></span>
           </button>
-        </div>
-        <div class="court-main">
-          <img class="home-icon" src="/icon-home.png" width="208" height="208" alt="Doodle Rally" />
-          <h1>Doodle Rally</h1>
-          <p class="sub">Quick hand-drawn rallies</p>
-        </div>
-      </section>
+        </section>
 
-      <div class="home-main">
-        <button id="btn-vsbot" class="btn primary play" type="button" data-testid="play-bot">You vs Bot</button>
-        <div id="mp-entry" class="mp-entry" hidden>
-          <p id="mp-divider" class="mp-divider" data-testid="mp-divider"></p>
-          <button id="btn-friend" class="btn play" type="button" aria-haspopup="dialog" data-testid="play-friend"></button>
-          <p id="net-status" class="net-status" role="status" data-level="checking" data-testid="net-status" hidden>
-            <span id="net-label"></span>
-            <b id="net-word"></b>
-          </p>
+        <div class="home-main">
+          <button id="btn-vsbot" class="btn primary play" type="button" data-testid="play-bot">You vs Bot</button>
+          <div id="mp-entry" class="mp-entry" hidden>
+            <p id="mp-divider" class="mp-divider" data-testid="mp-divider"></p>
+            <button id="btn-friend" class="btn play" type="button" aria-haspopup="dialog" data-testid="play-friend"></button>
+            <p id="net-status" class="net-status" role="status" data-level="checking" data-testid="net-status" hidden>
+              <span id="net-label"></span>
+              <b id="net-word"></b>
+            </p>
+          </div>
         </div>
       </div>
 

@@ -13,12 +13,18 @@
   color: var(--text-2);
 }
 
-/* Names that can be tapped or that need a quiet emphasis: a dotted underline, like a hand-drawn line. */
+/* Names that can be tapped or that need a quiet emphasis: a dotted underline, like a hand-drawn line.
+   The dots are drawn as a row of circles (a dotted text-decoration has square dots in Chrome),
+   spaced to fit a whole number across the text so no dot is cut in half at the end. */
 .dotted {
   color: var(--ink);
   font-weight: 700;
-  text-decoration: underline dotted 2px;
-  text-underline-offset: 4px;
+  text-decoration: none;
+  padding-bottom: 5px;
+  background: radial-gradient(circle, currentColor 0 1.25px, transparent 1.75px) 0 100% / 6px 4px;
+  background-repeat: round no-repeat;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 a.dotted {
   cursor: pointer;

@@ -50,6 +50,7 @@
   --sans: var(--font);
   /* Type scale (desktop): title > heading > subtitle > body > label > caption.
      Phones get the smaller steps in the media query below. Nothing is under 14 px. */
+  --t-hero: 80px; /* the home page title only */
   --t-title: 56px;
   --t-heading: 32px;
   --t-subtitle: 24px;
@@ -281,17 +282,10 @@ canvas#game {
 }
 
 /* ---- Home page ------------------------------------------------------------ */
-/* The whole home page fits one screen. --d is the table's width corner to corner, sized to its
-   content: the title row, subtitle and icon must fit inside the white border of the half that
-   shows. Phones, tablets and short screens put the chips (as icons) in the title row: that needs
-   at least 528 px, so on phones the side corners run just off the screen; tablets grow it with the
-   screen. Large screens grow it too and put the labelled chips on the floor. */
+/* The whole home page fits one screen, in four parts: the header (chips), the hero (title,
+   subtitle and board), the two buttons, and the footer. Spare height is shared evenly between
+   the header and hero, the hero and buttons, and the buttons and footer (never less than 24 px). */
 .home {
-  --d: clamp(528px, min(100vw - 64px, (100dvh - 250px) * 1.6), 720px);
-  --title-fs: calc(var(--d) * 0.068);
-  --sub-fs: calc(var(--d) * 0.034);
-  --icon-s: calc(var(--d) * 0.136);
-  --top: max(4px, 8px + (var(--btn-h) - var(--title-fs)) / 2);
   position: fixed;
   inset: 0;
   z-index: 10;
@@ -299,79 +293,126 @@ canvas#game {
   flex-direction: column;
   align-items: center;
   overflow-y: auto;
-  /* The floor: a faint cool tint that fades to white, so the table stands out. */
-  background: linear-gradient(#e9f3ff, #ffffff 55%) var(--bg);
+  background: var(--bg);
   text-align: center;
   padding-top: env(safe-area-inset-top);
-}
-@media (min-width: 902px) and (min-height: 540px) {
-  .home {
-    /* Narrow enough that the labelled chips in the top corners stay on the floor. */
-    --d: clamp(612px, min(100vw - 290px, (100dvh - 250px) * 1.6), 720px);
-    --title-fs: calc(var(--d) * 0.0915);
-    --sub-fs: calc(var(--d) * 0.039);
-    --icon-s: calc(var(--d) * 0.157);
-    --top: 16px;
-  }
 }
 .home[hidden] {
   display: none;
 }
-/*
- * The court: the in-game table, a square seen from above and turned 45Â°, cut through its left and
- * right corners by the top of the screen, so exactly its lower half shows: a triangle pointing down
- * at the buttons. ::after is the blue surface with its inset white border; ::before is the darker
- * side band, the same square 11 px lower, so it shows along both lower edges.
- * The table is widest at the top, so the widest content goes there: the title (with the chips on
- * phones), then the subtitle, then the icon in the narrow point.
- */
-.court {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  flex: none;
+.home-body {
+  flex: 1 0 auto;
   width: 100%;
-  height: calc(env(safe-area-inset-top) + var(--d) / 2 + 11px);
-  margin-top: calc(-1 * env(safe-area-inset-top));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+  gap: 24px;
+  padding: 24px 16px;
 }
-.court::before,
-.court::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: env(safe-area-inset-top);
-  width: calc(var(--d) * 0.7071);
-  height: calc(var(--d) * 0.7071);
-  z-index: -1;
-  transform: translate(-50%, -50%) rotate(45deg);
-}
-.court::before {
-  top: calc(env(safe-area-inset-top) + 11px);
-  background: var(--primary-dark);
-}
-.court::after {
-  background: var(--table);
-  box-shadow:
-    inset 0 0 0 16px var(--table),
-    inset 0 0 0 21px #fff;
-}
-.court-main {
-  position: absolute;
-  left: 50%;
-  top: calc(env(safe-area-inset-top) + var(--top));
-  width: min(var(--d), 100%);
-  transform: translateX(-50%);
+.hero {
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
+.home h1 {
+  font: 700 var(--t-hero)/1 var(--font);
+  margin: 0;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.home .sub {
+  font: 700 var(--t-subtitle)/1.3 var(--font);
+  color: var(--text-2);
+  margin: 0 0 12px;
+}
+/*
+ * The board (viewBox 380 × 118, exactly as wide as the table; the top 34 units are room for the ball's arc), side on and an exact mirror image
+ * about the net (x 215): the blue top in perspective with a white border and centre line, and a
+ * dark front edge. No legs. The net is one ink upright, as in the reference, from just above the
+ * back edge to a small foot below the front edge. The game's red and blue paddles float over the
+ * two ends and rally a ball between them (src/ui/homeRally.ts). The board is exactly as wide as
+ * the buttons below it.
+ */
+.hero-table {
+  display: block;
+  width: min(100%, 440px);
+  height: auto;
+  aspect-ratio: 380 / 118;
+  overflow: visible;
+}
+.t-net {
+  fill: var(--ink);
+}
+.r-ball {
+  fill: #fff;
+  stroke: var(--ink);
+  stroke-width: 1.6;
+}
+.r-shadow {
+  fill: rgba(0, 40, 90, 0.3);
+}
+.paddle-red {
+  --face: #d23b3b;
+  --face-dark: #b02e2e;
+}
+.paddle-blue {
+  --face: #3f78be;
+  --face-dark: #2f5f9a;
+}
+.p-handle,
+.p-edge,
+.p-face {
+  stroke: var(--ink);
+  stroke-width: 4;
+  stroke-linejoin: round;
+}
+.p-handle {
+  fill: #fff;
+}
+.p-edge {
+  fill: var(--face-dark);
+}
+.p-face {
+  fill: var(--face);
+}
+.p-shade {
+  fill: var(--face-dark);
+  opacity: 0.5;
+}
+.p-grip,
+.p-glint {
+  fill: none;
+  stroke-linecap: round;
+}
+.p-grip {
+  stroke: rgba(0, 0, 0, 0.12);
+  stroke-width: 2;
+}
+.p-glint {
+  stroke: #fff;
+  stroke-width: 4.4;
+}
+.p-shadow {
+  fill: rgba(0, 40, 90, 0.22);
+}
+.t-top {
+  fill: var(--table);
+}
+.t-line {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.t-edge {
+  fill: var(--primary-ink);
+}
 .home-main {
-  flex: 1 0 auto;
   width: min(440px, 100%);
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding: 12px 16px;
 }
 .home .mp-divider {
   margin: 12px 0 8px;
@@ -380,68 +421,43 @@ canvas#game {
   margin-top: 8px;
 }
 .home .footer {
-  padding: 8px 16px calc(12px + env(safe-area-inset-bottom));
+  padding: 0 16px calc(16px + env(safe-area-inset-bottom));
 }
-.home-icon {
-  order: 3;
-  display: block;
-  width: var(--icon-s);
-  height: var(--icon-s);
-  margin: 10px auto 0;
-  user-select: none;
-  -webkit-user-drag: none;
-}
-/* White on the table blue: the title is large text, and the subtitle is bold so it counts as large too. */
-.home h1 {
-  font: 700 var(--title-fs)/1 var(--font);
-  margin: 0 0 8px;
-  letter-spacing: -0.01em;
-  color: #fff;
-  text-shadow: 0 3px 0 var(--primary-ink);
-}
-.home .sub {
-  font: 700 var(--sub-fs)/1.3 var(--font);
-  color: #fff;
-  margin: 0;
-}
-/* Phones, tablets and short screens: the chips shrink to their icons and sit either side of the
-   title. Screen readers still get "How to play" and the profile button's label. */
-@media (max-width: 901px), (max-height: 539px) {
-  .home-top .chip:has(.icon[data-icon="help"]),
-  .home-top .profile-btn {
-    width: var(--btn-h);
-    padding: 0;
-  }
-  .home-top .chip:has(.icon[data-icon="help"]) span:not(.icon),
-  .home-top .profile-btn-name {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-  .home-top .profile-btn .icon[data-icon="pencil"] {
-    display: none;
-  }
-}
-/* Short landscape phones: the table on the left half; the buttons and footer on the right. The
-   table may run a little past its half at the very top, above the buttons. */
+/* Short landscape phones: the header across the top, the hero on the left half and the buttons
+   on the right half, and the footer across the bottom. */
 @media (orientation: landscape) and (max-height: 520px) {
   .home {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr auto;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      "top top"
+      "hero main"
+      "foot foot";
     align-items: center;
+    column-gap: 24px;
   }
-  .court {
-    grid-row: 1 / -1;
-    align-self: start;
-    overflow: visible;
+  .home-body {
+    display: contents;
+  }
+  .home-top {
+    grid-area: top;
+  }
+  .hero {
+    grid-area: hero;
+    padding-left: 16px;
+  }
+  .hero-table {
+    width: min(100%, 384px);
   }
   .home-main {
+    grid-area: main;
     justify-self: center;
     width: min(400px, 100%);
+    padding-right: 16px;
+  }
+  .home .footer {
+    grid-area: foot;
   }
 }
 
@@ -571,14 +587,14 @@ canvas#game {
   white-space: nowrap;
   text-align: center;
 }
-/* Primary is black with white text; secondary (plain .btn) is white with black text. */
+/* Primary is red with white text; secondary (plain .btn) is white with black text. */
 .btn.primary {
-  background: var(--ink);
+  background: #d61a28;
   color: #fff;
 }
 .btn.primary:hover,
 .btn.primary:focus-visible {
-  background: #3a3a3a;
+  background: #b3141f;
 }
 /* Info badge */
 .info-badge {
@@ -619,6 +635,7 @@ canvas#game {
 /* Type scale on phones (width up to 600 px, or short landscape screens). */
 @media (max-width: 600px), (orientation: landscape) and (max-height: 520px) {
   :root {
+    --t-hero: 56px;
     --t-title: 40px;
     --t-heading: 28px;
     --t-subtitle: 20px;
@@ -626,53 +643,67 @@ canvas#game {
   }
 }
 
-/* ---- Home top bar: the profile button opens the player picker ------------- */
-/* Phones, tablets and short screens: the two icon chips sit on the table, either side of the title
-   (a row 200 px narrower than the table keeps their lower outer corners inside the white border).
-   Large screens: the labelled chips sit on the floor in the top corners of the screen. */
+/* ---- Home: How to play (header) and your player (under the board) ---------- */
 .home-top {
-  position: absolute;
-  top: calc(env(safe-area-inset-top) + 8px);
-  left: 50%;
-  width: calc(var(--d) - 200px);
-  transform: translateX(-50%);
-  z-index: 1;
+  width: 100%;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
+  padding: 16px 16px 0;
+}
+/* Plain text buttons: an icon and a dotted label, no pill. At least 44 px tall to tap. */
+.link-btn {
+  appearance: none;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--ink);
+  font: 700 var(--btn-font)/1.2 var(--font);
+  cursor: pointer;
 }
-@media (min-width: 902px) and (min-height: 540px) {
-  .home-top {
-    top: calc(env(safe-area-inset-top) + 12px);
-    left: 0;
-    width: 100%;
-    transform: none;
-    padding: 0 16px;
-  }
-}
-/* Both home chips use 24 px icons: the help mark, the player's face and the pencil. */
-.home-top .icon {
+.link-btn .icon {
   --icon: 24px;
 }
-.profile-btn {
-  gap: 8px;
-  padding: 0 16px;
+.link-btn:hover .dotted {
+  color: var(--primary-dark);
 }
-.profile-btn .profile-face {
-  width: 24px;
-  height: 24px;
+.link-btn:focus-visible {
+  outline: none;
   background: var(--primary-tint);
 }
+.link-btn:active {
+  transform: translateY(1px);
+}
+.profile-btn {
+  min-height: 40px;
+  margin-top: 4px;
+}
+/* Short screens (small phones, landscape phones): a little less air so everything still fits. */
+@media (max-height: 600px) {
+  .home-top {
+    padding-top: 8px;
+  }
+  .home-body {
+    gap: 16px;
+    padding-block: 16px;
+  }
+}
+.profile-btn .profile-face {
+  width: 28px;
+  height: 28px;
+}
 .profile-btn-name {
-  max-width: 144px;
+  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.chip:has(.icon[data-icon="help"]) {
-  gap: 8px;
-  padding: 0 16px;
+.profile-btn .icon[data-icon="pencil"] {
+  --icon: 20px;
 }
 
 /* ---- Avatar picker dialog ------------------------------------------------- */
@@ -809,7 +840,7 @@ canvas#game {
   background: linear-gradient(90deg, var(--primary-tint) 0%, var(--primary) 40%, var(--success) 70%, var(--danger) 92%);
   clip-path: inset(0 calc((1 - var(--power)) * 100%) 0 0);
 }
-/* Sweet spot (60â€“80%) as a dashed box, and the "may go out" zone (85% and up) as hatching. */
+/* Sweet spot (60–80%) as a dashed box, and the "may go out" zone (85% and up) as hatching. */
 .power-sweet {
   position: absolute;
   top: 0;
