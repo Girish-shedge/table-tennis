@@ -21,9 +21,10 @@ This is the single source of truth for the project. It started as the build brie
 | **Source code** | [github.com/Girish-shedge/table-tennis](https://github.com/Girish-shedge/table-tennis) (public, branch `main`) |
 | **Hosting** | Vercel, connected to GitHub. Every push to `main` deploys to production automatically. |
 | **Multiplayer relay** | Cloudflare Worker `tt-relay` at `https://tt-relay.girish-tt.workers.dev` (code in `server/`, deployed with `wrangler`). The client uses `wss://tt-relay.girish-tt.workers.dev`, set as `VITE_RELAY_URL` in Vercel (Production only) |
-| **Branches** | Work happens on `multiplayer` and is fast-forward merged into `main` to ship (14 Oct 2026 for v2.0, 15 Oct 2026 for v2.1 and v2.2). Start new work on a branch |
+| **Branches** | Work happens on `multiplayer` and is fast-forward merged into `main` to ship (every release from v2.0 to v2.8.2). `main` and `multiplayer` both point at the latest release commit |
+| **Latest release** | v2.8.2, commit `c292d84`, Vercel production deployment `dpl_CS8f3yM5HHVRbxSd9bbq14rqadmL` (READY, 15 Oct 2026) |
 | **Models used** | Day 1 multiplayer (frontend + backend): Grok. Day 2 (design): Claude Sonnet |
-| **Bundle size** | About 21 KB of gzipped JavaScript, 5.8 KB of CSS and 3.1 KB of HTML in v2.2 (target is under 150 KB). vs-Bot alone was 12.7 KB |
+| **Bundle size** | About 22.9 KB of gzipped JavaScript, 7.1 KB of CSS and 3.6 KB of HTML in v2.8.2 (target is under 150 KB). v2.2 was 21 KB of JavaScript; vs-Bot alone was 12.7 KB |
 
 Note: the Vercel project and the GitHub repo are still named `table-tennis`; only the game name and its address changed. `table-tennis.vercel.app` is owned by another Vercel account, which is why the first custom address used the spelling `tabel-tennis`.
 
@@ -38,6 +39,65 @@ npm test         # unit tests, including the seeded vs-Bot golden test
 ```
 
 Multiplayer needs the relay as well. See §29 for the local relay, the end-to-end test and the QA scripts.
+
+### Start here (for a new chat)
+
+A briefing for whoever picks the project up next. The history of every change is in §30; this section is how the work is actually done today.
+
+**Where things are**
+
+| Area | Files |
+|---|---|
+| Page markup (home, dialogs, match dock, top controls) | `index.html` |
+| App wiring: start, match loop, power bar slider, avatars, dialogs | `src/main.ts` |
+| Styles: tokens, buttons, chips, cards, home page, dock and power bar | `src/ui/styles.css` |
+| Friend-match screens, toasts, chat list, loader ball, VS screen | `src/ui/mp.css`, `src/ui/screens/index.ts`, `src/ui/vs.ts` |
+| Footer and the round-dot underline (`.dotted`) | `src/ui/footer.css` |
+| Home page rally animation | `src/ui/homeRally.ts` (§30.9) |
+| All user-facing text | `src/strings.ts` |
+| Shot power, sweet spot, risk | `src/game/shot.ts` |
+| Tunable constants / shared with the relay | `src/config.ts` / `shared/constants.ts` |
+| Relay (Cloudflare Worker) | `server/` |
+
+**Shipping a change** (Girish usually ends a request with "push the code and host it"):
+
+1. Work on `multiplayer`.
+2. Run the checks: `npx tsc --noEmit`, `npx vite build`, `npx vitest run` (35 tests), and `npx playwright test tests/e2e/match.spec.ts --reporter=line` (5 tests, about 2 minutes). The end-to-end test needs `npm run dev` (port 5173) and the local relay (`cd server; npm run dev`, port 8787) already running.
+3. Update this file: the Status row in §0, the deploy note in §24.1, and a new or extended subsection in §30.
+4. Commit and ship, naming files explicitly. Never list a file that is already deleted, because `git add` then fails and stages nothing. In PowerShell:
+   ```
+   git add <files>; git commit -m "vX.Y.Z: ..." -q; git checkout main -q; git merge --ff-only multiplayer -q; git push origin main multiplayer; git checkout multiplayer -q
+   ```
+5. Pushing `main` deploys to Vercel. Confirm the production deployment is READY: Vercel project `table-tennis`, id `prj_LSj9dJ57QNvs6sAf1qhqFhkFpK6M`, team `girish-shedges-projects`. Then load [doodle-rally.vercel.app](https://doodle-rally.vercel.app) with a fresh query string (for example `?v=282`) so a cached page isn't shown.
+6. The relay only needs `cd server; npx wrangler deploy` when `server/` or `shared/` changes (see §24.1).
+
+**Checking UI changes.** Girish judges by eye on his iPhone, which has **Reduce Motion turned on**, so test that case.
+
+- Write a throwaway Playwright script (`scratch-*.mjs` in the repo root) to screenshot and measure. Delete it and its images before committing.
+- **iPhone:** use `webkit` with `devices["iPhone 13"]` and `reducedMotion: "reduce"`. WebKit is installed (`npx playwright install webkit`).
+- **The home page must fit one screen with no scrolling** at 390×844, 390×664, 375×667, 375×548, 360×740, 768×1024, 1280×800, 1366×657, 1920×969, 844×390, 667×375 and 740×360. Check that `scrollHeight <= clientHeight` on `#overlay-start`.
+- **To freeze a moment:** for JavaScript animations use `page.clock.install()`, then `pauseAt`, then `runFor`. For CSS animations, pause `document.getAnimations()` and set `currentTime`.
+- **To see the loader ball,** slow the room request with `page.route("**/api/rooms", ...)`.
+- `getBoundingClientRect` is unreliable on SVG `<use>` elements; judge those from screenshots.
+- If the game is already open in another tab of the same browser, a new idle tab shows "Game is open in another tab" (E-22). Use a fresh browser context.
+
+**Tooling pitfalls on this Windows machine**
+
+- Don't rewrite files with PowerShell `Get-Content`/`Set-Content`: they mangle UTF-8 (the `—`, `·` and `→` characters) and add a BOM. Use the editor tools, or Node `fs` with `'utf8'`.
+- Inline `node -e` with nested quotes breaks in PowerShell. Put the script in a `.mjs` file.
+
+**Design rules Girish has set** (keep to these unless he says otherwise):
+
+- **Font and spacing:** SF Cartoonist Hand, on an 8 px grid.
+- **16 px edges on phones:** every screen and modal keeps exactly 16 px from the left and right edges, and cards have 16 px inside. On phones, cards stand straight with their shadow dropping straight down (§30.10).
+- **Primary buttons** are red `#D61A28` (hover `#B3141F`) with white text. Secondary buttons are white with black text.
+- **Underlines** are always round dots (`.dotted`), never square dots or solid lines.
+- **Home page:** four evenly spaced parts (How to play; the title, subtitle, board and your player; the two buttons; the footer). The board is exactly as wide as the buttons (§30.9).
+- **Motion:** the home rally and the loader ball play at full speed even with Reduce Motion on; decorative entrances still switch off.
+- **Match dock:** volume, power bar and chat have the same pill height and ink drop shadow, with even gaps (§30.10).
+- **Asking first:** when a design choice is open (for example how the net should look), offer options rather than guessing. Girish sends numbered lists of changes and shares reference images.
+
+**What's still open:** the real-device test and edge-case sweep (S-1, S-2 in §24.5), and the logic gaps in §29.2.
 
 ---
 
@@ -1299,6 +1359,8 @@ Rules for every chat: one task per chat, commit after each task passes its "Done
 - Day 2 work must not edit shared/, server/, src/net/ or game physics.
 ```
 
+*Update 15 Oct 2026:* these rules were written for the Day 1 and Day 2 build and were never saved as a `.cursor/rules` file. Two no longer apply. Releases are shipped by fast-forwarding `main` to `multiplayer` and pushing both, at Girish's request (see "Start here" in §0). And the palette gained the red primary `#D61A28` / `#B3141F` at his request. The rest still hold.
+
 ---
 
 ## 25. Dependencies From You (⚠️)
@@ -1399,7 +1461,9 @@ Everything marked ⚠️ in §25 has a default, so building can start now. Answe
 
 ---
 
-## 29. Current State and Known Gaps (14 Oct 2026)
+## 29. Current State and Known Gaps (14 Oct 2026, checked 15 Oct 2026)
+
+The release state is in §0 (Status, Latest release) and the working routine in "Start here" under §0. The commands and gaps below still hold as of v2.8.2.
 
 ### 29.1 Running and testing
 
