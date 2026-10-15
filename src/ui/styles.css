@@ -244,6 +244,7 @@ canvas#game {
 }
 
 .card {
+  --tilt: -0.6deg;
   position: relative;
   width: min(440px, 100%);
   background: #fff;
@@ -252,17 +253,25 @@ canvas#game {
   padding: 32px 24px 24px;
   text-align: center;
   box-shadow: 8px 8px 0 var(--ink);
-  transform: rotate(-0.6deg);
+  transform: rotate(var(--tilt));
   animation: card-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 @keyframes card-in {
   from {
-    transform: rotate(-0.6deg) scale(0.9) translateY(12px);
+    transform: rotate(var(--tilt)) scale(0.9) translateY(12px);
     opacity: 0;
   }
   to {
-    transform: rotate(-0.6deg) scale(1) translateY(0);
+    transform: rotate(var(--tilt)) scale(1) translateY(0);
     opacity: 1;
+  }
+}
+/* Phones: every screen and modal keeps exactly 16 px from the left and right edges, so the card
+   stands straight and its shadow drops down instead of reaching into the right margin. */
+@media (max-width: 600px), (orientation: landscape) and (max-height: 520px) {
+  .card {
+    --tilt: 0deg;
+    box-shadow: 0 8px 0 var(--ink);
   }
 }
 .card h1 {
@@ -767,10 +776,10 @@ canvas#game {
   translate: -50% 0;
   bottom: calc(16px + env(safe-area-inset-bottom));
   z-index: 5;
-  width: min(528px, calc(100vw - 32px));
+  width: min(560px, calc(100vw - 32px));
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 16px;
 }
 .dock[hidden] {
   display: none;
@@ -786,8 +795,10 @@ canvas#game {
 }
 
 /* ---- Power bar ---------------------------------------------------------------
-   A readout and a slider (tap or drag to set the power): ink outline, no hard shadow. The gradient
-   is fixed to the track (blue = soft, green = sweet spot, red = may go out) and the fill reveals it from the left. */
+   A slider (tap or drag to set the power) in the same pill as the volume and chat buttons, hard
+   shadow included, so the three line up. Inside: the "Power" label, the track, and the state as a
+   coloured tag (blue while building, green in the sweet spot, red when it may go out). The gradient
+   is fixed to the track and the fill reveals it from the left; the handle marks the current power. */
 .power {
   --power: 0;
   flex: 1;
@@ -796,10 +807,11 @@ canvas#game {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 0 16px;
+  padding: 0 6px 0 16px;
   border: 2px solid var(--ink);
   border-radius: 999px;
   background: #fff;
+  box-shadow: 0 4px 0 var(--ink);
   cursor: pointer;
   touch-action: none;
   user-select: none;
@@ -809,66 +821,101 @@ canvas#game {
   outline: none;
   background: var(--primary-tint);
 }
-.power-label,
-.power-state {
+.power-label {
   flex: none;
   font: 700 var(--t-label)/1 var(--font);
 }
+/* Fixed width (fits "Sweet spot"), so the track never jumps as the words change. */
 .power-state {
-  width: 80px;
-  text-align: right;
-  color: var(--text-2);
+  flex: none;
+  width: 96px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--primary-tint);
+  color: var(--primary-ink);
+  font: 700 var(--t-caption)/1 var(--font);
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
 }
 .power.sweet .power-state {
+  background: var(--success-tint);
   color: var(--success-ink);
 }
 .power.risky .power-state {
+  background: var(--danger-tint);
   color: var(--danger-ink);
 }
 .power-track {
   position: relative;
   flex: 1;
-  height: 16px;
+  min-width: 0;
+  height: 24px;
   border: 2px solid var(--ink);
   border-radius: 999px;
   background: #fff;
-  overflow: hidden;
 }
-.power-fill {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, var(--primary-tint) 0%, var(--primary) 40%, var(--success) 70%, var(--danger) 92%);
-  clip-path: inset(0 calc((1 - var(--power)) * 100%) 0 0);
-}
-/* Sweet spot (60–80%) as a dashed box, and the "may go out" zone (85% and up) as hatching. */
-.power-sweet {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 60%;
-  width: 20%;
-  border-left: 2px dashed var(--ink);
-  border-right: 2px dashed var(--ink);
-}
+.power-fill,
+.power-sweet,
 .power-risk {
   position: absolute;
   top: 0;
   bottom: 0;
+}
+.power-fill {
+  left: 0;
+  right: 0;
+  z-index: 1;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary-tint) 0%, var(--primary) 40%, var(--success) 70%, var(--danger) 92%);
+  clip-path: inset(0 calc((1 - var(--power)) * 100%) 0 0);
+}
+/* Sweet spot (60–80%) as a green band with dashed edges, and the "may go out" zone (85% and up) as
+   hatching; both stay visible over the fill. */
+.power-sweet {
+  left: 60%;
+  width: 20%;
+  z-index: 2;
+  background: rgba(22, 163, 74, 0.16);
+  border-left: 2px dashed var(--ink);
+  border-right: 2px dashed var(--ink);
+}
+.power-risk {
   left: 85%;
   right: 0;
-  background: repeating-linear-gradient(-45deg, rgba(17, 17, 17, 0.18) 0 2px, transparent 2px 6px);
+  z-index: 2;
+  border-radius: 0 999px 999px 0;
+  background: repeating-linear-gradient(-45deg, rgba(17, 17, 17, 0.22) 0 2px, transparent 2px 6px);
 }
-/* Phones: the volume and chat buttons sit beside the bar, so the "Power" word makes room for the track. */
+.power-thumb {
+  position: absolute;
+  top: -8px;
+  bottom: -8px;
+  left: calc(4px + var(--power) * (100% - 8px));
+  z-index: 3;
+  width: 8px;
+  translate: -50% 0;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: #fff;
+  /* Hidden at zero power, where it would hang off the rounded end. */
+  opacity: min(1, calc(var(--power) * 100));
+}
+/* Phones: the "Power" word makes room for the track, and the dock gaps tighten a step. */
 @media (max-width: 480px) {
+  .dock {
+    gap: 8px;
+  }
   .power {
     gap: 8px;
-    padding: 0 16px;
+    padding-left: 16px;
   }
   .power-label {
     display: none;
   }
   .power-state {
-    width: 72px;
+    width: 80px;
   }
 }
 /* Short landscape: the table fills the bottom centre, so the dock moves to the free bottom-left corner. */
@@ -877,16 +924,16 @@ canvas#game {
     left: calc(16px + env(safe-area-inset-left));
     translate: none;
     width: 320px;
+    gap: 8px;
   }
   .power {
     gap: 8px;
-    padding: 0 8px 0 16px;
   }
   .power-label {
     display: none;
   }
   .power-state {
-    width: 72px;
+    width: 80px;
   }
 }
 

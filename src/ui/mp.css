@@ -473,7 +473,11 @@
 .mp-dots i:nth-child(3) {
   animation-delay: 0.3s;
 }
+/* A table-tennis ball bouncing on the spot. The ball and its shadow share one clock and the same
+   per-step curves (a real gravity arc: fast off the table, slow at the top, fast back down), and the
+   ball squashes for a moment when it lands, so the two never drift apart. */
 .mp-ball {
+  --hop: 32px;
   position: relative;
   height: 64px;
   margin: 0 auto 8px;
@@ -488,9 +492,10 @@
   border-radius: 50%;
   border: 2.5px solid var(--ink);
   background: #fff;
+  transform-origin: 50% 100%;
   /* transform + will-change keeps the bounce on the GPU, so a busy page cannot make it stutter */
   will-change: transform;
-  animation: ball-bounce 0.8s cubic-bezier(0.3, 0, 0.7, 1) infinite;
+  animation: ball-bounce 0.9s linear infinite;
 }
 .mp-ball::after {
   content: "";
@@ -502,7 +507,7 @@
   border-radius: 50%;
   background: var(--mp-line);
   will-change: transform, opacity;
-  animation: ball-shadow 0.8s cubic-bezier(0.3, 0, 0.7, 1) infinite;
+  animation: ball-shadow 0.9s linear infinite;
 }
 .mp-glyph {
   display: block;
@@ -799,6 +804,7 @@
     grid-column: 1;
   }
   .mp-ball {
+    --hop: 16px;
     height: 48px;
   }
 }
@@ -850,26 +856,48 @@
     opacity: 1;
   }
 }
+/* 0–8%: on the table, un-squashing. 8–50%: rising (exact parabola, ease-out). 50–92%: falling
+   (exact parabola, ease-in). 92–100%: landing squash. The shadow uses the same stops and curves. */
 @keyframes ball-bounce {
   0%,
   100% {
-    transform: translate3d(0, 0, 0);
-    animation-timing-function: cubic-bezier(0.2, 0.6, 0.4, 1);
+    transform: translate3d(0, 0, 0) scale(1.18, 0.82);
+    animation-timing-function: ease-out;
+  }
+  8% {
+    transform: translate3d(0, 0, 0) scale(1);
+    animation-timing-function: cubic-bezier(0.33, 0.67, 0.67, 1);
   }
   50% {
-    transform: translate3d(0, -32px, 0);
-    animation-timing-function: cubic-bezier(0.6, 0, 0.8, 0.4);
+    transform: translate3d(0, calc(-1 * var(--hop)), 0) scale(1);
+    animation-timing-function: cubic-bezier(0.33, 0, 0.67, 0.33);
+  }
+  92% {
+    transform: translate3d(0, 0, 0) scale(1);
+    animation-timing-function: ease-in;
   }
 }
 @keyframes ball-shadow {
   0%,
   100% {
+    transform: scale(1.08);
+    opacity: 1;
+    animation-timing-function: ease-out;
+  }
+  8% {
     transform: scale(1);
     opacity: 1;
+    animation-timing-function: cubic-bezier(0.33, 0.67, 0.67, 1);
   }
   50% {
     transform: scale(0.55);
-    opacity: 0.5;
+    opacity: 0.45;
+    animation-timing-function: cubic-bezier(0.33, 0, 0.67, 0.33);
+  }
+  92% {
+    transform: scale(1);
+    opacity: 1;
+    animation-timing-function: ease-in;
   }
 }
 @keyframes urgent-pulse {
@@ -879,15 +907,6 @@
   }
   50% {
     scale: 1.06;
-  }
-}
-@keyframes ball-bounce-soft {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0);
-  }
-  50% {
-    transform: translate3d(0, -16px, 0);
   }
 }
 @keyframes toast-in {
@@ -908,22 +927,18 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* Not the bouncing ball or the dots: they say "still working", and many phones turn on reduced
+     motion with battery saver, where a frozen or floaty loader looks broken. */
   #mp-root.fresh,
   .code-tile,
   .info-badge.mp-joined,
   .mp-count.tick circle,
   .mp-count.tick h1,
-  .mp-ball::after,
   .mp-expiry.urgent,
   .toast,
   .toast.out,
   #emotes {
     animation: none;
-  }
-  /* The ball and the dots say "still working", so they keep moving (many phones turn on reduced
-     motion with battery saver, and a frozen loader looks like a crash). A shorter, slower hop. */
-  .mp-ball span {
-    animation: ball-bounce-soft 1.2s ease-in-out infinite;
   }
   .mp-count.tick circle {
     stroke-dashoffset: 0;
