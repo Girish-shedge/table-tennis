@@ -4,19 +4,19 @@ import { solveShot, type Vec3 } from "./physics";
 
 /**
  * Shot power, 0..1, set by pulling the paddle back before contact.
- * 0 drops the ball just past the net; more power lands deeper and faster.
- * 60–80% is the sweet spot (tightest aim, a little extra pace). Past 85% the ball
- * may sail long, and at 100% it always goes out.
+ * 0 is a soft push that still carries to the far paddle (no double bounce); more power lands
+ * deeper and faster. 60–80% is the sweet spot (tightest aim, a little extra pace). Past 85% the
+ * ball may sail long, and at 100% it always goes out.
  */
 export const POWER = {
   sweetMin: 0.6,
   sweetMax: 0.8,
   riskFrom: 0.85,
   /** Landing depth (table z) at 0 and at full in-play power. */
-  shortZ: 1.6,
+  shortZ: 1.9,
   deepZ: 2.6,
   /** Horizontal speed (m/s) at 0 and 1. */
-  minSpeed: 3.2,
+  minSpeed: 4.0,
   maxSpeed: 6.5,
   sweetBonus: 0.4,
   serveSpeedScale: 0.92,
@@ -50,16 +50,49 @@ export function rolledAim(power: number, serve = false): Aim {
   const sweet = inSweetSpot(power);
   let tz = aim.tz + gaussian() * (sweet ? 0.03 : 0.07);
   if (Math.random() < outRisk(power)) tz = CONFIG.tableL + 0.08 + Math.random() * 0.3;
-  else tz = clamp(tz, CONFIG.netZ + 0.15, CONFIG.tableL - 0.08);
+  else tz = clamp(tz, POWER.shortZ - 0.1, CONFIG.tableL - 0.08);
   return { tz, speed: aim.speed };
 }
 
-/** Sideways wobble on a hit: smaller in the sweet spot. */
-export const aimWobble = (power: number) => gaussian() * (inSweetSpot(power) ? 0.02 : 0.05);
+/**
+ * Sideways aim. The paddle angles back toward the opponent's side: from the left end the shot goes
+ * to the centre or the right, from the right end to the centre or the left. A sideways swing and
+ * where the ball meets the face steer it, but a player's shot never lands outside the side lines.
+ */
+export const AIM = {
+  /** Aim shift per metre the paddle stands off centre (negative: back across the table). */
+  cross: -0.2,
+  /** Aim shift per m/s of sideways swing, capped at `steerMax`. */
+  steer: 0.15,
+  steerMax: 0.4,
+  /** Aim shift per metre the ball meets the face off its centre. */
+  face: 0.8,
+  /** Furthest from the centre line a shot is aimed (the side line is at 0.76). */
+  edge: 0.6,
+  /** Paddle roll (radians) per metre between the paddle and its aim, and the most it rolls. */
+  tiltPerM: 0.5,
+  tiltMax: 0.5,
+};
 
-/** Serve aim across the table, from where the paddle is and how it is moving. No luck, so the preview is honest. */
+/** Where the paddle is pointing: the aim before the face offset and luck. Drives the paddle's angle. */
+export function paddleAimX(paddleX: number, paddleVx: number): number {
+  return AIM.cross * paddleX + clamp(paddleVx * AIM.steer, -AIM.steerMax, AIM.steerMax);
+}
+
+/** Paddle roll toward its aim, so you can see where the shot will go. */
+export function aimTilt(paddleX: number, paddleVx: number): number {
+  return clamp((paddleAimX(paddleX, paddleVx) - paddleX) * AIM.tiltPerM, -AIM.tiltMax, AIM.tiltMax);
+}
+
+/** The real sideways target of a hit: paddle aim, face offset and a little wobble (less in the sweet spot). */
+export function shotTx(ballX: number, paddleX: number, paddleVx: number, power: number): number {
+  const wobble = gaussian() * (inSweetSpot(power) ? 0.02 : 0.05);
+  return clamp(paddleAimX(paddleX, paddleVx) + (ballX - paddleX) * AIM.face + wobble, -AIM.edge, AIM.edge);
+}
+
+/** Serve aim across the table: where the paddle points (as for a hit). No luck, so the preview is honest. */
 export function serveTx(paddleX: number, paddleVx: number): number {
-  return clamp(paddleX * 0.4 + paddleVx * 0.15, -0.6, 0.6);
+  return clamp(paddleAimX(paddleX, paddleVx), -AIM.edge, AIM.edge);
 }
 
 /** Launch velocity for a shot from `from` aimed at (tx, tz). */

@@ -1,6 +1,6 @@
-# Table Tennis (TT) — Project Spec
+# Doodle Rally — Project Spec
 
-A single-screen, hand-drawn-style, pseudo-3D table tennis game that plays in the browser on desktop (keyboard and mouse) and mobile (touch). You play the red paddle at the near end against **Bot**, a hand-drawn character with a blue paddle at the far end.
+**Doodle Rally** (called *Table Tennis* until 15 Oct 2026, see §30.8) is a single-screen, hand-drawn-style, pseudo-3D table tennis game that plays in the browser on desktop (keyboard and mouse) and mobile (touch). You play the red paddle at the near end against **Bot**, a hand-drawn character with a blue paddle at the far end.
 
 This is the single source of truth for the project. It started as the build brief, reverse-engineered from the 10 reference frames (`frame_001.png` to `frame_010.png`), and now records what was actually built, the decisions taken along the way, and every update since the first release.
 
@@ -15,9 +15,9 @@ This is the single source of truth for the project. It started as the build brie
 
 | | |
 |---|---|
-| **Status** | v2.2 live (15 Oct 2026): rally power holds until your hit, Play with a friend dialog, signal strength on the home page and 12-character names, on top of v2.1 (shot power, serve preview, steadier Bot, §30.4) and v2.0 online multiplayer (Part 2). Real-device test (S-1) and edge-case sweep (S-2) still to do |
-| **Live game** | [tabel-tennis.vercel.app](https://tabel-tennis.vercel.app) |
-| **Other live URLs** | [table-tennis-alpha-jet.vercel.app](https://table-tennis-alpha-jet.vercel.app) (original Vercel address, still works) |
+| **Status** | v2.4 live (15 Oct 2026): renamed **Doodle Rally**, the paddle aims with its angle, a settable power bar and chat vs Bot (§30.8), on top of v2.3 (VS screen, match dock, friend-match fixes, §30.5–30.7) and v2.2: rally power holds until your hit, Play with a friend dialog, signal strength on the home page and 12-character names, on top of v2.1 (shot power, serve preview, steadier Bot, §30.4) and v2.0 online multiplayer (Part 2). Real-device test (S-1) and edge-case sweep (S-2) still to do |
+| **Live game** | [doodle-rally.vercel.app](https://doodle-rally.vercel.app) |
+| **Other live URLs** | [tabel-tennis.vercel.app](https://tabel-tennis.vercel.app) redirects to doodle-rally (path and query kept, so old invite links still work; `vercel.json`). [table-tennis-alpha-jet.vercel.app](https://table-tennis-alpha-jet.vercel.app) (original Vercel address) still serves the game |
 | **Source code** | [github.com/Girish-shedge/table-tennis](https://github.com/Girish-shedge/table-tennis) (public, branch `main`) |
 | **Hosting** | Vercel, connected to GitHub. Every push to `main` deploys to production automatically. |
 | **Multiplayer relay** | Cloudflare Worker `tt-relay` at `https://tt-relay.girish-tt.workers.dev` (code in `server/`, deployed with `wrangler`). The client uses `wss://tt-relay.girish-tt.workers.dev`, set as `VITE_RELAY_URL` in Vercel (Production only) |
@@ -25,7 +25,7 @@ This is the single source of truth for the project. It started as the build brie
 | **Models used** | Day 1 multiplayer (frontend + backend): Grok. Day 2 (design): Claude Sonnet |
 | **Bundle size** | About 21 KB of gzipped JavaScript, 5.8 KB of CSS and 3.1 KB of HTML in v2.2 (target is under 150 KB). vs-Bot alone was 12.7 KB |
 
-Note: `table-tennis.vercel.app` is owned by another Vercel account, so the custom address uses the spelling `tabel-tennis`.
+Note: the Vercel project and the GitHub repo are still named `table-tennis`; only the game name and its address changed. `table-tennis.vercel.app` is owned by another Vercel account, which is why the first custom address used the spelling `tabel-tennis`.
 
 ### Run it locally
 
@@ -238,7 +238,7 @@ Fixed step `dt = 1/120 s`, accumulated from `requestAnimationFrame`.
 
 - The hit test happens in world space: the player's hit radius is 0.17 m, and Bot's is 0.09 m plus a per-difficulty bonus.
 - Return shots come from a ballistic solver (`solveShot`) that always clears the net.
-- Where the ball meets the paddle face, and how the paddle is moving, both steer the aim.
+- **Aim follows the paddle's angle** (`shotTx` in `src/game/shot.ts`). Off centre, the paddle turns back toward the table: from the left end it points at the centre or a little right, and from the right end at the centre or a little left (0.2 m of aim per metre off centre). A sideways swing steers it (0.15 m per m/s, at most 0.4 m) and so does where the ball meets the face (0.8 m per metre). The aim is capped at 0.6 m from the centre line, so a player's shot never goes out over a side line. Only power can send it long (§6.7).
 - Each hit plays a "tok" sound. A player hit also gives a small screen shake.
 
 ### 6.5 Player paddle
@@ -246,7 +246,7 @@ Fixed step `dt = 1/120 s`, accumulated from `requestAnimationFrame`.
 - `x` is clamped to the table width plus a 0.25 m margin.
 - `z` is clamped between 0.3 m and 1.2 m (the player's half).
 - The paddle follows its target with exponential easing (0.07 s).
-- It tilts with velocity, and its shadow sits on the table beneath it.
+- It rolls toward where it's aiming (`aimTilt`, up to 0.5 rad), so you can see the shot before you play it. Its shadow sits on the table beneath it. A friend's paddle rolls the same way.
 - It's drawn at **80% opacity**, and the ball is always drawn in front of it.
 
 ### 6.6 AI opponent (Bot)
@@ -266,14 +266,15 @@ Bot never misses on purpose (no random net or out faults). It only loses a point
 | Medium | 160 ms | 0.07 m | 1.7 m/s | 4.3 m/s | 4.1 m/s | 0.50 | 40% | 0.02 m |
 | Hard | 100 ms | 0.065 m | 2.0 m/s | 5.2 m/s | 4.7 m/s | 0.62 | 70% | 0.03 m |
 
-All three modes are beatable. `tests/rally.test.ts` checks this with a seeded headless rally against a scripted player. Bot returns about 86% (Easy), 95% (Medium) and 98% (Hard) of balls, and the player still wins points in every mode.
+All three modes are beatable. `tests/rally.test.ts` checks this with seeded headless rallies against a scripted player, averaged over three seeds. Since the paddle-angle aim (§30.8), Bot returns about 82% (Easy), 93% (Medium) and 95% (Hard) of balls, and the player still wins points in every mode.
 
 ### 6.7 Shot power
 
 - **Charge:** hold the paddle and pull it back toward you (mouse or finger). Power is the longest drag down from the highest point of the current hold, divided by 20% of the screen height (96 to 200 px). On a keyboard, holding ↓ or S fills the bar in 0.7 s.
-- **Keep or reset:** power only grows until it's spent. Moving forward to reach the ball (finger up, or ↑ / W) and letting go both keep it. It resets after your own hit or serve, and at every point. In a rally one finger sets both the paddle depth and the power, so an earlier version that lowered power on forward moves drained the bar exactly when players stepped in to hit (15 Oct 2026).
+- **Set or undo:** the power bar is also a slider. Tap or drag on it to set the exact power; the first 6% of the track snaps to zero, so tapping its left end clears an accidental pull. Pressing it doesn't take focus, so the arrow keys keep moving the paddle. A keyboard user who tabs to it gets ← → (10% steps), Home and End. A pull still in progress continues from the value you set.
+- **Keep or reset:** pulling only adds power until it's spent. Moving forward to reach the ball (finger up, or ↑ / W) and letting go both keep it. It resets after your own hit or serve, and at every point. In a rally one finger sets both the paddle depth and the power, so an earlier version that lowered power on forward moves drained the bar exactly when players stepped in to hit (15 Oct 2026).
 - **Effect** (`src/game/shot.ts`):
-  - 0% lands just past the net.
+  - 0% is a soft push that lands at 1.9 m (4.0 m/s), deep enough to reach the far paddle before a second bounce from anywhere in your normal range. It used to land at 1.6 m, which bounced twice before Bot could reach it. A zero-power shot played right at the net can still drop short.
   - Depth and speed grow with power.
   - 60 to 80% is the **sweet spot**: least spread and a small speed bonus.
   - From 85%, the chance of the ball going long rises to certain at 100%.
@@ -397,7 +398,7 @@ Redesigned to match the reference: a translucent light-blue band with a thick bl
 
 ### 9.3 Start screen
 - A **crossed red and blue bats** icon at the top (no ball).
-- Title: **Table Tennis**. Subtitle: *You vs Bot · first to 11, win by 2*.
+- Title: **Doodle Rally** (was **Table Tennis** until 15 Oct 2026). Subtitle: *You vs Bot · first to 11, win by 2*.
 - Three buttons: **Easy**, **Medium**, **Hard** (names only, no subheadings).
 - A blue **info badge** with an info icon and the controls hint.
 
@@ -966,7 +967,7 @@ Errors return `{error: "ROOM_NOT_FOUND" | "ROOM_FULL" | "ROOM_EXPIRED" | "VERSIO
 - Reconnect uses backoff of 1 s, 2 s, 4 s, then 5 s until the window ends.
 
 **Security and privacy**
-- `wss://` only. The Worker checks the `Origin` header against an allowlist from the `ALLOWED_ORIGINS` environment variable. It must include `https://tabel-tennis.vercel.app`, `https://table-tennis-alpha-jet.vercel.app`, the Vercel preview URLs for this repo, and `http://localhost:5173` for development.
+- `wss://` only. The Worker checks the `Origin` header against an allowlist from the `ALLOWED_ORIGINS` environment variable. It must include `https://doodle-rally.vercel.app`, `https://tabel-tennis.vercel.app`, `https://table-tennis-alpha-jet.vercel.app`, the Vercel preview URLs for this repo, and `http://localhost:5173` for development.
 - Max 2 players per room, 2 KB message cap, per-socket message rate limit, per-IP limits on creating rooms (about 5 a minute) and looking up codes (about 20 a minute).
 - The host clamps all guest input to table bounds and a maximum speed.
 - Names: trim, 1–12 characters (16 before 15 Oct 2026), strip control characters, optional small blocklist (Y-13), shown with `textContent` only (never `innerHTML`).
@@ -1170,7 +1171,7 @@ IDs are used by the tests and the sweep in §24.5.
 - Set `VITE_RELAY_URL` in Vercel for **Preview** and **Production** (⚠️ Y-3). Without it the MP buttons stay hidden (E-50).
 - Merge to `main` only when the QA gate in §24.5 is green.
 - *Update 14 Oct 2026:* `multiplayer` was merged into `main` at Girish's request before S-1 and S-2, so the device test happens on production. `VITE_RELAY_URL` is currently set for **Production** only. For new work, branch from `main` again and add the preview variable if you want MP on preview URLs. Preview URLs are also not in the Worker's `ALLOWED_ORIGINS`, so add them there (in `server/wrangler.toml`, then redeploy) to test MP on a preview.
-- *Update 15 Oct 2026:* v2.1 was shipped the same way: committed on `multiplayer`, then `main` was fast-forwarded to it and pushed. The relay did not change, so no `wrangler deploy` was needed. v2.2 shipped the same way. Its shared name limit (12) only reaches the relay at its next `wrangler deploy`; until then the relay accepts up to 16, which is harmless. v2.3 (§30.5–30.7) shipped the same way. It changes the relay (`server/src/room.ts`: leaving a finished room no longer reopens it), so the relay was redeployed with `cd server && npx wrangler deploy` on the same day. That deploy also applied the 12-character name limit from v2.2.
+- *Update 15 Oct 2026:* v2.1 was shipped the same way: committed on `multiplayer`, then `main` was fast-forwarded to it and pushed. The relay did not change, so no `wrangler deploy` was needed. v2.2 shipped the same way. Its shared name limit (12) only reaches the relay at its next `wrangler deploy`; until then the relay accepts up to 16, which is harmless. v2.3 (§30.5–30.7) shipped the same way. It changes the relay (`server/src/room.ts`: leaving a finished room no longer reopens it), so the relay was redeployed with `cd server && npx wrangler deploy` on the same day. That deploy also applied the 12-character name limit from v2.2. v2.4 (§30.8) shipped the same way. The relay was redeployed first, so friend matches work from `doodle-rally.vercel.app` (new origin in `ALLOWED_ORIGINS`, and `doodle-rally` previews in `server/src/http.ts`).
 
 ### 24.2 Prompt template for every Cursor chat
 
@@ -1307,10 +1308,10 @@ Each shows when it blocks work and **what I'll assume if you don't answer**.
 
 | Item | Resolution |
 |---|---|
-| Game name | **Table Tennis** (start screen title) |
+| Game name | **Doodle Rally** (start screen title; was **Table Tennis** until 15 Oct 2026) |
 | Footer links | Instagram, X and LinkedIn already in place |
 | Static hosting | Vercel (existing) |
-| Domain | `tabel-tennis.vercel.app` (existing) |
+| Domain | `doodle-rally.vercel.app` (`tabel-tennis.vercel.app` redirects to it) |
 | GitHub repo | Existing public repo `Girish-shedge/table-tennis` |
 | Character | One character (Bot's), representing the friend |
 
@@ -1519,3 +1520,12 @@ These were found during the Day 2 design pass, which wasn't allowed to change lo
 - **vs Bot:** it shows for 2.5 s and cannot be skipped, then the match starts (`#overlay-vs`, `startWithVs` in `main.ts`). This also happens on Play again. The Bot uses its own face.
 - **vs Friend:** it replaces the old 3-2-1 card. The countdown keeps running inside the splash and ends with "Go!", so both phones stay in step with the relay's `start`.
 - Motion: the two halves and both players slide in from their corners, and the "VS" pops in. With reduced motion, everything appears in place.
+
+### 30.8 Doodle Rally: paddle angle, power control, chat vs Bot (15 Oct 2026)
+
+- **New name: Doodle Rally.** The home title, page title, icon text, canvas label and share sheet all use it. The live address is [doodle-rally.vercel.app](https://doodle-rally.vercel.app), added to the same Vercel project. `tabel-tennis.vercel.app` redirects there with a 307 (`vercel.json`, matched on the host), keeping the path and query so shared invite links still open the right room. The relay allows the new origin. The Vercel project and the GitHub repo keep the name `table-tennis`.
+- **The paddle aims with its angle.** It used to aim with the ball's own side plus a strong push from swipe speed and edge hits (up to ±0.9 m, past the 0.76 m side line). So a player at the left end, moving left to reach the ball, often sent it straight out. Now the paddle rolls back toward the table and the shot follows it: from the left end to the centre or the right, and the other way from the right end. It is never aimed past 0.6 m, so a player's shot can't go out over a side line (§6.4, §6.5). The serve and its dotted preview follow the same angle. A friend's shots use the same rule.
+- **Power bar is a slider** (§6.7). Tap or drag to set the power, or tap the left end to clear it, if a pull went too far. Pulling still works as before.
+- **No double bounce from a soft shot.** Zero power used to land the ball 0.23 m past the net, and it bounced twice before Bot's paddle. Now the softest shot lands at 1.9 m and carries to the far paddle from your normal range (`tests/rally.test.ts`).
+- **Chat vs Bot.** The chat button shows in Bot matches too. Your emote appears by your paddle, and Bot answers in its speech bubble 0.7 s later (Nice! → "Thanks!" or "You too!", Hey! → "Hey!" or "Hi!", Ouch! → "Hehe!" or "Sorry!", GG → "GG!", Rematch? → "Anytime!" or "You're on!").
+- **Balance:** the cross-table pull was tuned so Bot keeps its return rates (about 82% Easy, 93% Medium, 95% Hard; §6.6). A stronger pull (0.45 m per metre) cut Easy to about 56%. The vs-Bot golden trace was re-captured.

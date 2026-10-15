@@ -223,7 +223,7 @@ function startMatch(d: Difficulty) {
   $<HTMLButtonElement>("btn-conn").hidden = true;
   $<HTMLButtonElement>("btn-leave").hidden = false;
   $<HTMLElement>("btn-mode").hidden = false;
-  btnChat.hidden = true; // emotes only go to a friend
+  btnChat.hidden = false; // Bot answers emotes too
   (document.activeElement as HTMLElement | null)?.blur?.();
 }
 
@@ -349,13 +349,31 @@ for (const btn of Array.from(emotes.querySelectorAll<HTMLButtonElement>("button"
   btn.textContent = COPY.emotes[id] ?? "";
   btn.addEventListener("click", () => {
     setChatOpen(false);
-    if (!online) return;
     const text = COPY.emotes[id];
     if (!text) return;
-    net.send({ t: "emote", id });
     selfEmote = text;
     selfEmoteAt = game.now;
+    if (online) net.send({ t: "emote", id });
+    else botAnswer(id);
   });
+}
+
+/** vs Bot: Bot answers an emote in its speech bubble, a moment later. */
+const BOT_ANSWERS: readonly (readonly string[])[] = [
+  ["Thanks!", "You too!"],
+  ["Hey!", "Hi!"],
+  ["Hehe!", "Sorry!"],
+  ["GG!"],
+  ["Anytime!", "You're on!"],
+];
+let botAnswerTimer = 0;
+function botAnswer(id: number) {
+  window.clearTimeout(botAnswerTimer);
+  botAnswerTimer = window.setTimeout(() => {
+    if (online || game.phase === "MENU") return;
+    bubble.show(pick([...(BOT_ANSWERS[id] ?? ["Hey!"])]), game.now);
+    character.setMood("happy", 900, game.now);
+  }, 700);
 }
 
 $("over-hint").textContent = input.kind === "touch" ? "Tap to play again" : "Space or tap to play again";
@@ -385,6 +403,45 @@ function paintPower(p: number) {
   powerBar.setAttribute("aria-valuetext", `${pct}%, ${state}`);
 }
 paintPower(0);
+
+// The bar is also a slider, so a pull that went too far can be taken back: tap or drag to set
+// the power, and the left end clears it. Pressing it never takes focus, so the arrow keys keep
+// moving the paddle; a keyboard user who tabs to it gets the arrow keys, Home and End instead.
+const powerTrack = powerBar.querySelector<HTMLElement>(".power-track")!;
+const POWER_SNAP_ZERO = 0.06;
+function powerAt(clientX: number): number {
+  const r = powerTrack.getBoundingClientRect();
+  const p = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+  return p < POWER_SNAP_ZERO ? 0 : p;
+}
+let powerPointer: number | null = null;
+powerBar.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  powerPointer = e.pointerId;
+  try {
+    powerBar.setPointerCapture(e.pointerId);
+  } catch {
+    /* capture is best-effort */
+  }
+  input.setPull(powerAt(e.clientX));
+});
+powerBar.addEventListener("pointermove", (e) => {
+  if (e.pointerId === powerPointer) input.setPull(powerAt(e.clientX));
+});
+for (const type of ["pointerup", "pointercancel", "lostpointercapture"] as const) {
+  powerBar.addEventListener(type, (e) => {
+    if (e.pointerId === powerPointer) powerPointer = null;
+  });
+}
+powerBar.addEventListener("keydown", (e) => {
+  const step = { ArrowLeft: -0.1, ArrowDown: -0.1, ArrowRight: 0.1, ArrowUp: 0.1 }[e.key];
+  if (step !== undefined) input.setPull(Math.round((input.pull + step) * 10) / 10);
+  else if (e.key === "Home") input.setPull(0);
+  else if (e.key === "End") input.setPull(1);
+  else return;
+  e.preventDefault();
+  e.stopPropagation();
+});
 
 // ---- Player avatars -------------------------------------------------------
 

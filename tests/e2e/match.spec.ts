@@ -127,3 +127,25 @@ test("a guest can join from the invite link", async ({ browser }) => {
   await hostCtx.close();
   await guestCtx.close();
 });
+
+test("vs Bot: chat is there, and the power bar sets and clears the power", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Doodle Rally" })).toBeVisible();
+  await page.getByTestId("play-bot").click();
+  await page.locator('.option[data-mode="easy"]').click();
+
+  const chat = page.getByTestId("chat-toggle");
+  await expect(chat).toBeVisible({ timeout: 5_000 });
+  await chat.click();
+  await page.getByTestId("emote-0").click();
+  await expect(page.getByTestId("emote-0")).toBeHidden();
+
+  const power = page.getByTestId("power");
+  const track = await power.locator(".power-track").boundingBox();
+  if (!track) throw new Error("no power track");
+  const y = track.y + track.height / 2;
+  await page.mouse.click(track.x + track.width * 0.7, y);
+  await expect(power).toHaveAttribute("aria-valuenow", /^(69|70|71)$/);
+  await page.mouse.click(track.x + 2, y);
+  await expect(power).toHaveAttribute("aria-valuenow", "0");
+});

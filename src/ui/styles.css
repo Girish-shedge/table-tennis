@@ -634,8 +634,8 @@ canvas#game {
 }
 
 /* ---- Power bar ---------------------------------------------------------------
-   A status readout, not a button: ink outline, no hard shadow. The gradient is fixed to the
-   track (blue = soft, green = sweet spot, red = may go out) and the fill reveals it from the left. */
+   A readout and a slider (tap or drag to set the power): ink outline, no hard shadow. The gradient
+   is fixed to the track (blue = soft, green = sweet spot, red = may go out) and the fill reveals it from the left. */
 .power {
   --power: 0;
   flex: 1;
@@ -648,7 +648,14 @@ canvas#game {
   border: 2px solid var(--ink);
   border-radius: 999px;
   background: #fff;
-  pointer-events: none;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.power:focus-visible {
+  outline: none;
+  background: var(--primary-tint);
 }
 .power-label,
 .power-state {

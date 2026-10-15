@@ -26,6 +26,7 @@ export class Input {
    * Pointer: the longest drag down from the highest point of the hold, so pulling past the back
    * edge of the paddle's range still charges. Keys: how long ↓ / S has been held. It only ever
    * grows: moving forward to reach the ball (finger up, or ↑) keeps it, and so does letting go.
+   * The power bar sets it directly (see `setPull`), which is how a pull that went too far is undone.
    * It resets after each hit or serve, and at every point.
    */
   pull = 0;
@@ -84,8 +85,13 @@ export class Input {
 
   /** Back to zero power, measured from where the pointer is now. */
   resetPull() {
-    this.pull = 0;
-    this.pullAnchorY = this.lastY;
+    this.setPull(0);
+  }
+
+  /** Set the power directly (the power bar is also a slider); a pull still in progress continues from it. */
+  setPull(p: number) {
+    this.pull = Math.min(1, Math.max(0, p));
+    this.pullAnchorY = this.lastY - this.pull * this.pullPx;
   }
 
   /** Per-frame keyboard part of the pull. */

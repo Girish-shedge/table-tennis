@@ -1,0 +1,10 @@
+{
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "tabel-tennis.vercel.app" }],
+      "destination": "https://doodle-rally.vercel.app/:path*",
+      "permanent": false
+    }
+  ]
+}

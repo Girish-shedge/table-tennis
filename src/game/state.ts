@@ -1,5 +1,4 @@
 import { CONFIG, NET, type Difficulty } from "../config";
-import { clamp } from "../render/sketch";
 import { AI } from "./ai";
 import { AIController, LocalInput, RemoteInput } from "./controllers";
 import {
@@ -13,7 +12,7 @@ import {
   type Side,
 } from "./physics";
 import { serverFor, winner, type Score } from "./score";
-import { aimWobble, launch, nominalAim, previewPath, rolledAim, serveTx } from "./shot";
+import { launch, nominalAim, previewPath, rolledAim, serveTx, shotTx } from "./shot";
 
 export type Phase = "MENU" | "SERVE" | "RALLY" | "POINT" | "GAME_OVER";
 
@@ -308,11 +307,8 @@ export class Game {
   private playerHit() {
     const b = this.ball;
     const p = this.player;
-    // Aim: mostly back toward the middle, angled by where on the face the ball
-    // struck and by how fast the paddle was swinging sideways. Extreme swipes
-    // or edge hits can push the shot wide. Depth and pace come from the power.
-    const offset = b.pos.x - p.pos.x;
-    const tx = clamp(b.pos.x * 0.4 + offset * 2.6 + p.vel.x * 0.26 + aimWobble(this.playerPower), -0.9, 0.9);
+    // Aim follows the paddle's angle (see shotTx); depth and pace come from the power.
+    const tx = shotTx(b.pos.x, p.pos.x, p.vel.x, this.playerPower);
     const aim = rolledAim(this.playerPower);
     b.vel = launch(b.pos, tx, aim);
     b.pos.z = p.pos.z + 0.01;
@@ -477,8 +473,7 @@ export class Game {
     const mz = CONFIG.tableL - b.pos.z;
     const px = -p.x;
     const pvx = -this.aiPaddle.vel.x;
-    const offset = mx - px;
-    const tx = clamp(mx * 0.4 + offset * 2.6 + pvx * 0.26 + aimWobble(this.farPower), -0.9, 0.9);
+    const tx = shotTx(mx, px, pvx, this.farPower);
     const aim = rolledAim(this.farPower);
     const vel = launch({ x: mx, y: b.pos.y, z: mz }, tx, aim);
     b.vel = { x: -vel.x, y: vel.y, z: -vel.z };

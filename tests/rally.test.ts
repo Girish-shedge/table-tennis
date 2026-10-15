@@ -1,12 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { CONFIG } from "../src/config";
-import { POWER, nominalAim, outRisk, rolledAim } from "../src/game/shot";
+import { CONFIG, type Difficulty } from "../src/config";
+import { makeBall, stepBall } from "../src/game/physics";
+import { POWER, aimTilt, launch, nominalAim, outRisk, paddleAimX, rolledAim, shotTx } from "../src/game/shot";
 import { rallyStats } from "./rally-sim";
 
+/** Pooled over a few seeds, so one unlucky trace does not decide a threshold. */
+function pooled(d: Difficulty) {
+  const runs = [7, 1, 2].map((seed) => rallyStats(d, seed));
+  const reasons: Record<string, number> = {};
+  for (const r of runs) for (const [k, n] of Object.entries(r.reasons)) reasons[k] = (reasons[k] ?? 0) + n;
+  return { botReturnRate: runs.reduce((s, r) => s + r.botReturnRate, 0) / runs.length, reasons };
+}
+
 describe("Bot rally length", () => {
-  const easy = rallyStats("easy");
-  const medium = rallyStats("medium");
-  const hard = rallyStats("hard");
+  const easy = pooled("easy");
+  const medium = pooled("medium");
+  const hard = pooled("hard");
 
   it("returns most balls, more often on harder modes", () => {
     expect(easy.botReturnRate).toBeGreaterThan(0.78);
@@ -32,11 +41,26 @@ describe("Bot rally length", () => {
 });
 
 describe("Shot power", () => {
-  it("drops just past the net at zero power and lands deeper with more", () => {
+  it("lands past the net at zero power and deeper with more", () => {
     expect(nominalAim(0).tz).toBeCloseTo(POWER.shortZ);
     expect(nominalAim(0).tz).toBeGreaterThan(CONFIG.netZ);
     expect(nominalAim(0.5).tz).toBeGreaterThan(nominalAim(0.2).tz);
     expect(nominalAim(0.5).speed).toBeGreaterThan(nominalAim(0.2).speed);
+  });
+
+  it("carries a soft shot to the far paddle instead of bouncing twice", () => {
+    for (const p of [0, 0.1, 0.3]) {
+      for (const z of [0.3, 0.6, 0.9]) {
+        const b = makeBall();
+        b.pos = { x: 0, y: 0.15, z };
+        b.vel = launch(b.pos, 0, nominalAim(p));
+        let bounces = 0;
+        while (b.pos.z < CONFIG.aiPaddleZ && b.pos.y > CONFIG.floorY) {
+          if (stepBall(b, 1 / 120, true).type === "bounce") bounces++;
+        }
+        expect(bounces, `power ${p} from z ${z}`).toBe(1);
+      }
+    }
   });
 
   it("is safe up to the risk line and always out at full power", () => {
@@ -46,5 +70,27 @@ describe("Shot power", () => {
     expect(outRisk(1)).toBe(1);
     for (let i = 0; i < 50; i++) expect(rolledAim(1).tz).toBeGreaterThan(CONFIG.tableL);
     for (let i = 0; i < 50; i++) expect(rolledAim(0.7).tz).toBeLessThanOrEqual(CONFIG.tableL);
+  });
+});
+
+describe("Paddle angle", () => {
+  it("turns toward the centre at the edges", () => {
+    expect(aimTilt(-0.76, 0)).toBeGreaterThan(0.3);
+    expect(aimTilt(0.76, 0)).toBeLessThan(-0.3);
+    expect(aimTilt(0, 0)).toBe(0);
+  });
+
+  it("aims back into play from either edge, even on a hard swing outward", () => {
+    expect(paddleAimX(-0.76, 0)).toBeGreaterThan(0);
+    expect(paddleAimX(0.76, 0)).toBeLessThan(0);
+    for (const px of [-1, -0.76, 0, 0.76, 1]) {
+      for (const vx of [-8, 0, 8]) {
+        for (const off of [-CONFIG.paddleHitR, 0, CONFIG.paddleHitR]) {
+          for (let i = 0; i < 20; i++) {
+            expect(Math.abs(shotTx(px + off, px, vx, 0.4))).toBeLessThanOrEqual(CONFIG.tableW / 2 - 0.1);
+          }
+        }
+      }
+    }
   });
 });

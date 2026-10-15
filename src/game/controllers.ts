@@ -2,6 +2,7 @@ import { CONFIG } from "../config";
 import { clamp, damp } from "../render/sketch";
 import { AI } from "./ai";
 import type { Ball, Paddle } from "./physics";
+import { aimTilt } from "./shot";
 import type { Phase } from "./state";
 
 /**
@@ -36,7 +37,7 @@ export class LocalInput implements PaddleController {
     p.pos.z = damp(p.pos.z, p.target.z, CONFIG.paddleSmooth, dt);
     p.vel.x = (p.pos.x - px) / dt;
     p.vel.z = (p.pos.z - pz) / dt;
-    p.tilt = damp(p.tilt, clamp(p.vel.x * 0.35, -0.45, 0.45), 0.08, dt);
+    p.tilt = damp(p.tilt, aimTilt(p.pos.x, p.vel.x), 0.08, dt);
     p.squash = Math.max(0, p.squash - dt * 6);
   }
 }
@@ -77,7 +78,7 @@ export class RemoteInput implements PaddleController {
     paddle.pos.z = damp(paddle.pos.z, paddle.target.z, CONFIG.paddleSmooth, dt);
     paddle.vel.x = (paddle.pos.x - px) / dt;
     paddle.vel.z = (paddle.pos.z - pz) / dt;
-    paddle.tilt = damp(paddle.tilt, clamp(paddle.vel.x * 0.35, -0.45, 0.45), 0.08, dt);
+    paddle.tilt = damp(paddle.tilt, aimTilt(paddle.pos.x, paddle.vel.x), 0.08, dt);
     paddle.squash = Math.max(0, paddle.squash - dt * 6);
   }
 }

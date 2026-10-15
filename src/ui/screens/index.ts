@@ -327,7 +327,7 @@ export function mountMultiplayer(hooks: ScreenHooks) {
     const link = inviteLink();
     try {
       if (navigator.share) {
-        await navigator.share({ title: "Table Tennis", url: link });
+        await navigator.share({ title: "Doodle Rally", url: link });
         return;
       }
     } catch {

@@ -16,7 +16,7 @@ export function originAllowed(origin: string | null, env: Env): boolean {
     if (url.protocol !== "https:") return false;
     const host = url.hostname;
     if (!host.endsWith(".vercel.app")) return false;
-    return host.includes("table-tennis") || host.includes("tabel-tennis");
+    return host.includes("table-tennis") || host.includes("tabel-tennis") || host.includes("doodle-rally");
   } catch {
     return false;
   }

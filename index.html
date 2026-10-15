@@ -7,14 +7,14 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
     <meta name="theme-color" content="#ffffff" />
-    <title>Table Tennis</title>
+    <title>Doodle Rally</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/icon.png" />
     <link rel="preload" href="/fonts/SFCartoonistHand-Bold.ttf" as="font" type="font/ttf" crossorigin />
     <link rel="preload" href="/fonts/SFCartoonistHand.ttf" as="font" type="font/ttf" crossorigin />
   </head>
   <body>
-    <canvas id="game" aria-label="Table tennis game"></canvas>
+    <canvas id="game" aria-label="Doodle Rally, a table tennis game"></canvas>
 
     <!-- Top bar: difficulty or connection on the left, close on the right -->
     <div id="controls" class="controls" hidden>
@@ -38,12 +38,12 @@
       </div>
     </div>
 
-    <!-- Bottom dock during a match: volume, shot power (pull the paddle back to charge it), chat -->
+    <!-- Bottom dock during a match: volume, shot power (pull the paddle back to charge it, or tap/drag the bar to set it), chat -->
     <div id="dock" class="dock" hidden>
       <button id="btn-mute" class="chip chip-icon" type="button" title="Mute (M)" aria-label="Mute" aria-pressed="false">
         <span class="icon" data-icon="volume"></span>
       </button>
-      <div id="power" class="power" role="meter" aria-label="Shot power" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div id="power" class="power" role="slider" tabindex="0" data-testid="power" title="Tap or drag to set the power" aria-label="Shot power" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
         <span class="power-label" aria-hidden="true">Power</span>
         <span class="power-track" aria-hidden="true">
           <span class="power-fill"></span>
@@ -81,8 +81,8 @@
       </div>
 
       <div class="home-main">
-        <img class="home-icon" src="/icon.png" width="208" height="208" alt="Table Tennis" />
-        <h1>Table Tennis</h1>
+        <img class="home-icon" src="/icon.png" width="208" height="208" alt="Doodle Rally" />
+        <h1>Doodle Rally</h1>
         <p class="sub">Quick hand-drawn rallies. Beat Bot, or challenge a friend.</p>
         <button id="btn-vsbot" class="btn primary play" type="button" data-testid="play-bot">You vs Bot</button>
         <div id="mp-entry" class="mp-entry" hidden>
@@ -164,7 +164,7 @@
         <h1 id="help-title" class="mp-h">How to play</h1>
         <ul class="howto">
           <li><span class="howto-icon" aria-hidden="true">1</span><p><strong>Move</strong><span>Arrow keys or A, D, W, S. Or drag the paddle with the mouse. On a phone, drag anywhere on the screen.</span></p></li>
-          <li><span class="howto-icon" aria-hidden="true">2</span><p><strong>Power</strong><span>Hold the paddle and pull it back (or hold Down) to charge the bar. Power stays until you hit, so you can move forward to the ball freely. No power drops the ball just past the net. The green sweet spot is the most accurate. Too much and the ball flies out.</span></p></li>
+          <li><span class="howto-icon" aria-hidden="true">2</span><p><strong>Power</strong><span>Hold the paddle and pull it back (or hold Down) to charge the bar. Power stays until you hit, so you can move forward to the ball freely. Pulled too far? Tap or drag the power bar to set it, or tap its left end to clear it. No power is a soft push. The green sweet spot is the most accurate. Too much and the ball flies out.</span></p></li>
           <li><span class="howto-icon" aria-hidden="true">3</span><p><strong>Serve</strong><span>Press Space, or tap, when it's your serve. The dotted line shows where it will land. The serve switches every 2 points.</span></p></li>
           <li><span class="howto-icon" aria-hidden="true">4</span><p><strong>Score</strong><span>Land the ball on your opponent's half. A miss, a net, an out or a double bounce gives them the point.</span></p></li>
           <li><span class="howto-icon" aria-hidden="true">5</span><p><strong>Win</strong><span>First to 11 points, and you must win by 2.</span></p></li>

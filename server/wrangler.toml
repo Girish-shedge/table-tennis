@@ -3,7 +3,7 @@ main = "src/index.ts"
 compatibility_date = "2026-10-14"
 
 [vars]
-ALLOWED_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173,https://tabel-tennis.vercel.app,https://table-tennis-alpha-jet.vercel.app"
+ALLOWED_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173,https://doodle-rally.vercel.app,https://tabel-tennis.vercel.app,https://table-tennis-alpha-jet.vercel.app"
 
 [[durable_objects.bindings]]
 name = "ROOM"
