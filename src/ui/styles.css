@@ -347,6 +347,37 @@ canvas#game {
     0 calc(100% - var(--v) - var(--band) - var(--line))
   );
 }
+/* Court markings: same idea as drawTable (inset white border + centre line) and the net band. */
+.court-lines {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  fill: none;
+  stroke: #fff;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.court-border {
+  stroke-width: 2.5px;
+  vector-effect: non-scaling-stroke;
+}
+.court-mid {
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+}
+.court-net {
+  stroke: rgba(255, 255, 255, 0.72);
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+}
+.home-top,
+.court-main {
+  position: relative;
+  z-index: 1;
+}
 @media (min-width: 600px) {
   .court {
     padding-bottom: calc(var(--v) * 0.4 + 16px);
