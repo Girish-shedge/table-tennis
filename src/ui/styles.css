@@ -296,32 +296,107 @@ canvas#game {
 .home[hidden] {
   display: none;
 }
+/*
+ * The court: the table seen from above, with one corner pointing down at the floor (the white page).
+ * Three stacked V shapes draw it: the table's darker side band (the element itself), the white edge
+ * line (::before) and the blue surface (::after), each lifted a little more than the one below.
+ * The table runs off the top and both sides of the screen, so only the bottom corner is drawn.
+ */
+.court {
+  --v: min(40vw, 26vh);
+  --band: 8px;
+  --line: 8px;
+  position: relative;
+  isolation: isolate;
+  flex: none;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Phones: the text ends above the corner. Wider screens: the corner is wide near its top, so the
+     subtitle may sit in its upper part. */
+  padding: env(safe-area-inset-top) 0 calc(var(--v) + 8px);
+  margin-top: calc(-1 * env(safe-area-inset-top));
+  background: var(--primary-dark);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--v)), 50% 100%, 0 calc(100% - var(--v)));
+}
+.court::before,
+.court::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+.court::before {
+  background: #fff;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--v) - var(--band)),
+    50% calc(100% - var(--band)),
+    0 calc(100% - var(--v) - var(--band))
+  );
+}
+.court::after {
+  background: var(--table);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--v) - var(--band) - var(--line)),
+    50% calc(100% - var(--band) - var(--line)),
+    0 calc(100% - var(--v) - var(--band) - var(--line))
+  );
+}
+@media (min-width: 600px) {
+  .court {
+    padding-bottom: calc(var(--v) * 0.4 + 16px);
+  }
+}
+.court-main {
+  width: min(440px, 100%);
+  padding: 16px 16px 0;
+}
+/* Short phones: a smaller icon and a shallower corner so the floor buttons still fit. */
+@media (max-width: 599px) and (max-height: 760px) {
+  .court {
+    --v: min(40vw, 14vh);
+  }
+  .court-main {
+    padding-top: 8px;
+  }
+  .court .home-icon {
+    width: 112px;
+    height: 112px;
+  }
+}
 .home-main {
   flex: 1 0 auto;
   width: min(440px, 100%);
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 24px 16px;
+  padding: 16px;
 }
 .home-icon {
   display: block;
   width: 208px;
   height: 208px;
   margin: 0 auto 8px;
-  mix-blend-mode: multiply; /* hides the icon's off-white backdrop on the white page */
   user-select: none;
   -webkit-user-drag: none;
 }
+/* White on the table blue: the title is large text, and the subtitle is bold so it counts as large too. */
 .home h1 {
   font: 700 var(--t-title)/1 var(--font);
   margin: 0 0 8px;
   letter-spacing: -0.01em;
+  color: #fff;
+  text-shadow: 0 3px 0 var(--primary-ink);
 }
 .home .sub {
-  font: 400 var(--t-body)/1.4 var(--font);
-  color: var(--text-2);
-  margin: 0 auto 24px;
+  font: 700 var(--t-subtitle)/1.3 var(--font);
+  color: #fff;
+  margin: 0 auto;
   max-width: 400px;
   text-wrap: balance;
 }
@@ -488,15 +563,12 @@ canvas#game {
 }
 
 @media (orientation: landscape) and (max-height: 520px) {
-  .home-main {
-    padding: 16px;
+  .court-main {
+    padding-top: 8px;
   }
   .home-icon {
     width: 112px;
     height: 112px;
-  }
-  .home .sub {
-    margin-bottom: 16px;
   }
 }
 
@@ -532,15 +604,17 @@ canvas#game {
   gap: 8px;
   padding: 16px 16px 0;
 }
+/* Both home chips use 24 px icons: the help mark, the player's face and the pencil. */
+.home-top .icon {
+  --icon: 24px;
+}
 .profile-btn {
   gap: 8px;
-  padding: 0 16px 0 4px;
+  padding: 0 16px;
 }
 .profile-btn .profile-face {
-  width: 40px;
-  height: 40px;
-}
-.profile-btn .profile-face {
+  width: 24px;
+  height: 24px;
   background: var(--primary-tint);
 }
 .profile-btn-name {

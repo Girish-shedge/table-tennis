@@ -68,22 +68,27 @@
 
     <!-- Home page -->
     <main id="overlay-start" class="home">
-      <div class="home-top">
-        <button id="btn-help" class="chip" type="button" aria-haspopup="dialog" data-testid="how-to-play">
-          <span class="icon" data-icon="help" style="--icon: 24px"></span>
-          <span>How to play</span>
-        </button>
-        <button id="btn-profile" class="chip profile-btn" type="button" aria-haspopup="dialog" aria-label="My player: edit your name and avatar" data-testid="choose-player">
-          <span id="profile-btn-face" class="profile-face"></span>
-          <span id="profile-btn-name" class="profile-btn-name"></span>
-          <span class="icon" data-icon="pencil" style="--icon: 20px"></span>
-        </button>
-      </div>
+      <!-- The court: one corner of the table, pointing down. Buttons and footer sit on the floor below it. -->
+      <section class="court">
+        <div class="home-top">
+          <button id="btn-help" class="chip" type="button" aria-haspopup="dialog" data-testid="how-to-play">
+            <span class="icon" data-icon="help"></span>
+            <span>How to play</span>
+          </button>
+          <button id="btn-profile" class="chip profile-btn" type="button" aria-haspopup="dialog" aria-label="My player: edit your name and avatar" data-testid="choose-player">
+            <span id="profile-btn-face" class="profile-face"></span>
+            <span id="profile-btn-name" class="profile-btn-name"></span>
+            <span class="icon" data-icon="pencil"></span>
+          </button>
+        </div>
+        <div class="court-main">
+          <img class="home-icon" src="/icon-home.png" width="208" height="208" alt="Doodle Rally" />
+          <h1>Doodle Rally</h1>
+          <p class="sub">Quick hand-drawn rallies. Beat Bot, or challenge a friend.</p>
+        </div>
+      </section>
 
       <div class="home-main">
-        <img class="home-icon" src="/icon.png" width="208" height="208" alt="Doodle Rally" />
-        <h1>Doodle Rally</h1>
-        <p class="sub">Quick hand-drawn rallies. Beat Bot, or challenge a friend.</p>
         <button id="btn-vsbot" class="btn primary play" type="button" data-testid="play-bot">You vs Bot</button>
         <div id="mp-entry" class="mp-entry" hidden>
           <p id="mp-divider" class="mp-divider" data-testid="mp-divider"></p>

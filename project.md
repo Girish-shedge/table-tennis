@@ -397,6 +397,7 @@ Redesigned to match the reference: a translucent light-blue band with a thick bl
 - When a point ends, the result shows in **red, in the footer font**: `Bot missed`, `Missed!`, `Net!`, `Out!`, `Double bounce` or `Fault`.
 
 ### 9.3 Start screen
+*Original design, kept for history. The current home page is the court layout in §30.9.*
 - A **crossed red and blue bats** icon at the top (no ball).
 - Title: **Doodle Rally** (was **Table Tennis** until 15 Oct 2026). Subtitle: *You vs Bot · first to 11, win by 2*.
 - Three buttons: **Easy**, **Medium**, **Hard** (names only, no subheadings).
@@ -1528,4 +1529,13 @@ These were found during the Day 2 design pass, which wasn't allowed to change lo
 - **Power bar is a slider** (§6.7). Tap or drag to set the power, or tap the left end to clear it, if a pull went too far. Pulling still works as before.
 - **No double bounce from a soft shot.** Zero power used to land the ball 0.23 m past the net, and it bounced twice before Bot's paddle. Now the softest shot lands at 1.9 m and carries to the far paddle from your normal range (`tests/rally.test.ts`).
 - **Chat vs Bot.** The chat button shows in Bot matches too. Your emote appears by your paddle, and Bot answers in its speech bubble 0.7 s later (Nice! → "Thanks!" or "You too!", Hey! → "Hey!" or "Hi!", Ouch! → "Hehe!" or "Sorry!", GG → "GG!", Rematch? → "Anytime!" or "You're on!").
-- **Balance:** the cross-table pull was tuned so Bot keeps its return rates (about 82% Easy, 93% Medium, 95% Hard; §6.6). A stronger pull (0.45 m per metre) cut Easy to about 56%. The vs-Bot golden trace was re-captured.
+- **Balance (paddle angle):** the cross-table pull was tuned so Bot keeps its return rates (about 82% Easy, 93% Medium, 95% Hard; §6.6). A stronger pull (0.45 m per metre) cut Easy to about 56%. The vs-Bot golden trace was re-captured.
+
+### 30.9 Home page: the court (15 Oct 2026)
+
+- **Layout from a poster reference:** the top of the home page is the table seen from above, with one corner pointing down at the floor. The **How to play** chip, the **player chip** (face, name, pencil), the icon, **Doodle Rally** and the subtitle sit on the court. **You vs Bot**, **Play with a friend**, signal strength and the footer sit on the white floor below it.
+- **Colours are the game's own:** the court is the in-game table blue (`--table`) with a white edge line and the darker table side (`--primary-dark`) below it, against the white page. The three layers are V-shaped `clip-path`s on `.court` and its `::before` and `::after`. The table runs off the top and sides, so only the bottom corner shows.
+- **Text on the court is white.** The title has a dark-blue drop line. The subtitle is bold at the subtitle size, so it counts as large text for contrast on the blue.
+- **Corner depth** is `min(40vw, 26vh)`. On phones the text ends above the corner. From 600 px wide, the subtitle may sit in the corner's wide upper part. Phones up to 760 px tall use a 112 px icon and a shallower corner (`14vh`) so the buttons still fit. Short landscape scrolls to the buttons.
+- **Icon:** `public/icon-home.png` is the home icon with its off-white backdrop made transparent (anti-aliased outline kept as semi-transparent ink). The old multiply blend would have tinted the white ball and handles blue on the court. `icon.png` is unchanged and is still the touch icon.
+- **Home chip icons are all 24 px:** the help mark, the player's face (was 40 px) and the pencil (was 20 px).
