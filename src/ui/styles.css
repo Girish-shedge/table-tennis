@@ -281,15 +281,17 @@ canvas#game {
 }
 
 /* ---- Home page ------------------------------------------------------------ */
-/* The whole home page fits one screen. --d is the table's width corner to corner: as wide as the
-   screen allows (16 px of floor each side, at most 640 px), and small enough on short screens that
-   the buttons and footer fit below it. The icon, title and subtitle scale with it. */
+/* The whole home page fits one screen. --d is the table's width corner to corner, sized to its
+   content: the title row, subtitle and icon must fit inside the white border of the half that
+   shows. Phones, tablets and short screens put the chips (as icons) in the title row: that needs
+   at least 528 px, so on phones the side corners run just off the screen; tablets grow it with the
+   screen. Large screens grow it too and put the labelled chips on the floor. */
 .home {
-  --d: min(100vw - 32px, 640px, (100dvh - 250px) / 0.88);
-  --cy: calc(var(--d) * 0.38);
-  --icon-s: calc(var(--d) * 0.18);
-  --title-fs: min(var(--t-title), var(--d) * 0.1);
-  --sub-fs: min(var(--t-subtitle), max(16px, var(--d) * 0.05));
+  --d: clamp(528px, min(100vw - 64px, (100dvh - 250px) * 1.6), 720px);
+  --title-fs: calc(var(--d) * 0.068);
+  --sub-fs: calc(var(--d) * 0.034);
+  --icon-s: calc(var(--d) * 0.136);
+  --top: max(4px, 8px + (var(--btn-h) - var(--title-fs)) / 2);
   position: fixed;
   inset: 0;
   z-index: 10;
@@ -297,21 +299,31 @@ canvas#game {
   flex-direction: column;
   align-items: center;
   overflow-y: auto;
-  /* The floor: a faint cool tint that fades to white, so the table's corner stands out. */
+  /* The floor: a faint cool tint that fades to white, so the table stands out. */
   background: linear-gradient(#e9f3ff, #ffffff 55%) var(--bg);
   text-align: center;
   padding-top: env(safe-area-inset-top);
+}
+@media (min-width: 902px) and (min-height: 540px) {
+  .home {
+    /* Narrow enough that the labelled chips in the top corners stay on the floor. */
+    --d: clamp(612px, min(100vw - 290px, (100dvh - 250px) * 1.6), 720px);
+    --title-fs: calc(var(--d) * 0.0915);
+    --sub-fs: calc(var(--d) * 0.039);
+    --icon-s: calc(var(--d) * 0.157);
+    --top: 16px;
+  }
 }
 .home[hidden] {
   display: none;
 }
 /*
- * The court: the in-game table, a square seen from above and turned 45°. Its left, right and bottom
- * corners sit on the floor (the white page); the top corner runs off the top of the screen. Its
- * centre is --cy below the top. ::after is the blue surface with its inset white border; ::before
- * is the darker side band, the same square 11 px lower, so it shows along both front edges.
- * The title sits on the centre line, where the table is widest, with the icon above and the
- * subtitle below.
+ * The court: the in-game table, a square seen from above and turned 45Â°, cut through its left and
+ * right corners by the top of the screen, so exactly its lower half shows: a triangle pointing down
+ * at the buttons. ::after is the blue surface with its inset white border; ::before is the darker
+ * side band, the same square 11 px lower, so it shows along both lower edges.
+ * The table is widest at the top, so the widest content goes there: the title (with the chips on
+ * phones), then the subtitle, then the icon in the narrow point.
  */
 .court {
   position: relative;
@@ -319,7 +331,7 @@ canvas#game {
   overflow: hidden;
   flex: none;
   width: 100%;
-  height: calc(env(safe-area-inset-top) + var(--cy) + var(--d) / 2 + 11px);
+  height: calc(env(safe-area-inset-top) + var(--d) / 2 + 11px);
   margin-top: calc(-1 * env(safe-area-inset-top));
 }
 .court::before,
@@ -327,14 +339,14 @@ canvas#game {
   content: "";
   position: absolute;
   left: 50%;
-  top: calc(env(safe-area-inset-top) + var(--cy));
+  top: env(safe-area-inset-top);
   width: calc(var(--d) * 0.7071);
   height: calc(var(--d) * 0.7071);
   z-index: -1;
   transform: translate(-50%, -50%) rotate(45deg);
 }
 .court::before {
-  top: calc(env(safe-area-inset-top) + var(--cy) + 11px);
+  top: calc(env(safe-area-inset-top) + 11px);
   background: var(--primary-dark);
 }
 .court::after {
@@ -346,9 +358,12 @@ canvas#game {
 .court-main {
   position: absolute;
   left: 50%;
-  top: calc(env(safe-area-inset-top) + var(--cy) - var(--icon-s) - 8px - var(--title-fs) / 2);
-  width: var(--d);
+  top: calc(env(safe-area-inset-top) + var(--top));
+  width: min(var(--d), 100%);
   transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .home-main {
   flex: 1 0 auto;
@@ -368,17 +383,18 @@ canvas#game {
   padding: 8px 16px calc(12px + env(safe-area-inset-bottom));
 }
 .home-icon {
+  order: 3;
   display: block;
   width: var(--icon-s);
   height: var(--icon-s);
-  margin: 0 auto 8px;
+  margin: 10px auto 0;
   user-select: none;
   -webkit-user-drag: none;
 }
 /* White on the table blue: the title is large text, and the subtitle is bold so it counts as large too. */
 .home h1 {
   font: 700 var(--title-fs)/1 var(--font);
-  margin: 0 0 6px;
+  margin: 0 0 8px;
   letter-spacing: -0.01em;
   color: #fff;
   text-shadow: 0 3px 0 var(--primary-ink);
@@ -388,10 +404,9 @@ canvas#game {
   color: #fff;
   margin: 0;
 }
-/* Phones and short landscape screens: the table's top is too narrow for the chips with their
-   labels, so they shrink to their icons on the floor in the top corners. Screen readers still get
-   "How to play" and the profile button's label. */
-@media (max-width: 699px), (orientation: landscape) and (max-height: 520px) {
+/* Phones, tablets and short screens: the chips shrink to their icons and sit either side of the
+   title. Screen readers still get "How to play" and the profile button's label. */
+@media (max-width: 901px), (max-height: 539px) {
   .home-top .chip:has(.icon[data-icon="help"]),
   .home-top .profile-btn {
     width: var(--btn-h);
@@ -410,10 +425,10 @@ canvas#game {
     display: none;
   }
 }
-/* Short landscape phones: the table on the left half; the chips, buttons and footer on the right. */
+/* Short landscape phones: the table on the left half; the buttons and footer on the right. The
+   table may run a little past its half at the very top, above the buttons. */
 @media (orientation: landscape) and (max-height: 520px) {
   .home {
-    --d: min(50vw - 32px, (100dvh - 11px) / 0.88);
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-template-rows: 1fr auto;
@@ -422,10 +437,7 @@ canvas#game {
   .court {
     grid-row: 1 / -1;
     align-self: start;
-  }
-  .home .home-top {
-    position: fixed;
-    justify-content: flex-end;
+    overflow: visible;
   }
   .home-main {
     justify-self: center;
@@ -559,13 +571,14 @@ canvas#game {
   white-space: nowrap;
   text-align: center;
 }
+/* Primary is black with white text; secondary (plain .btn) is white with black text. */
 .btn.primary {
-  background: var(--primary);
-  color: var(--on-primary);
+  background: var(--ink);
+  color: #fff;
 }
 .btn.primary:hover,
 .btn.primary:focus-visible {
-  background: var(--primary-dark);
+  background: #3a3a3a;
 }
 /* Info badge */
 .info-badge {
@@ -614,18 +627,29 @@ canvas#game {
 }
 
 /* ---- Home top bar: the profile button opens the player picker ------------- */
-/* The chips sit on the floor in the top corners of the screen, either side of the table's top. */
+/* Phones, tablets and short screens: the two icon chips sit on the table, either side of the title
+   (a row 200 px narrower than the table keeps their lower outer corners inside the white border).
+   Large screens: the labelled chips sit on the floor in the top corners of the screen. */
 .home-top {
   position: absolute;
-  top: calc(env(safe-area-inset-top) + 12px);
-  left: 0;
-  right: 0;
+  top: calc(env(safe-area-inset-top) + 8px);
+  left: 50%;
+  width: calc(var(--d) - 200px);
+  transform: translateX(-50%);
   z-index: 1;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  padding: 0 16px;
+}
+@media (min-width: 902px) and (min-height: 540px) {
+  .home-top {
+    top: calc(env(safe-area-inset-top) + 12px);
+    left: 0;
+    width: 100%;
+    transform: none;
+    padding: 0 16px;
+  }
 }
 /* Both home chips use 24 px icons: the help mark, the player's face and the pencil. */
 .home-top .icon {
@@ -785,7 +809,7 @@ canvas#game {
   background: linear-gradient(90deg, var(--primary-tint) 0%, var(--primary) 40%, var(--success) 70%, var(--danger) 92%);
   clip-path: inset(0 calc((1 - var(--power)) * 100%) 0 0);
 }
-/* Sweet spot (60–80%) as a dashed box, and the "may go out" zone (85% and up) as hatching. */
+/* Sweet spot (60â€“80%) as a dashed box, and the "may go out" zone (85% and up) as hatching. */
 .power-sweet {
   position: absolute;
   top: 0;
