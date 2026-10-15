@@ -4,10 +4,11 @@
  * after a hit a paddle follows through towards the net, drops back to a ready spot while the other
  * side plays, then dips with the incoming ball and steps in to meet it on the inner (net) side of
  * its face, swinging through as it hits. Positions are in the hero SVG's viewBox units. It only
- * runs while the home page is on screen, and holds still (the ball over the net) for people who
- * prefer reduced motion.
+ * runs while the home page is on screen. With Reduce Motion on (iPhones often have it on, and
+ * Safari and Chrome there both report it) it still plays, just calmer.
  */
 const SHOT_S = 1.1; // one shot, paddle to paddle
+const CALM = 0.65; // playback speed with reduced motion (a shot takes about 1.7 s)
 const CYCLE_S = 2 * SHOT_S;
 const HIT_L = 124.5; // ball centre at the red paddle's hit: touching the middle of its inner side
 const HIT_R = 305.5; // and the blue one's (mirrored about the net at x 215)
@@ -71,7 +72,7 @@ export function mountHomeRally() {
   const blueShadow = $("rally-blue-shadow");
   if (!home || !ball || !shadow || !red || !blue || !redShadow || !blueShadow) return;
 
-  const still = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const calm = window.matchMedia("(prefers-reduced-motion: reduce)");
   let frame = 0;
   let start = 0;
 
@@ -105,12 +106,13 @@ export function mountHomeRally() {
   };
 
   const tick = (now: number) => {
-    draw(((now - start) / 1000) % CYCLE_S);
+    const speed = calm.matches ? CALM : 1;
+    draw((((now - start) / 1000) * speed) % CYCLE_S);
     frame = requestAnimationFrame(tick);
   };
 
   const update = () => {
-    const run = !home.hidden && document.visibilityState === "visible" && !still.matches;
+    const run = !home.hidden && document.visibilityState === "visible";
     if (run && !frame) {
       start = performance.now();
       frame = requestAnimationFrame(tick);
@@ -118,11 +120,11 @@ export function mountHomeRally() {
       cancelAnimationFrame(frame);
       frame = 0;
     }
-    if (!run) draw(SHOT_S / 2);
   };
 
+  draw(SHOT_S / 2);
   update();
   document.addEventListener("visibilitychange", update);
-  still.addEventListener("change", update);
+  window.addEventListener("pageshow", update);
   new MutationObserver(update).observe(home, { attributes: true, attributeFilter: ["hidden"] });
 }
